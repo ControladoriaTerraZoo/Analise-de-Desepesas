@@ -12,6 +12,7 @@
     --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
     --v2:#2e7d32;
     --series-real:var(--v2); --series-orc:#d9762a;
+    --yoy-a:#2a78d6; --yoy-b:var(--v2);
     --good:#0ca30c; --critical:#d03b3b; --warning:#fab219;
     --good-bg:rgba(12,163,12,0.10); --critical-bg:rgba(208,59,59,0.10);
     --chip-bg:#f0efec;
@@ -27,6 +28,7 @@
       --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
       --v2:#39944a;
       --series-real:var(--v2); --series-orc:#d95926;
+      --yoy-a:#3987e5; --yoy-b:var(--v2);
       --good:#0ca30c; --critical:#e66767; --warning:#c98500;
       --good-bg:rgba(12,163,12,0.16); --critical-bg:rgba(230,103,103,0.14);
       --chip-bg:#26241f;
@@ -41,6 +43,7 @@
     --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
     --v2:#39944a;
     --series-real:var(--v2); --series-orc:#d95926;
+    --yoy-a:#3987e5; --yoy-b:var(--v2);
     --good:#0ca30c; --critical:#e66767; --warning:#c98500;
     --good-bg:rgba(12,163,12,0.16); --critical-bg:rgba(230,103,103,0.14);
     --chip-bg:#26241f;
@@ -114,22 +117,78 @@
   .login-card .tz-tagline{ color:rgba(255,255,255,0.6); }
 
   /* ---------- App shell ---------- */
-  #app{ display:none; max-width:1320px; margin:0 auto; padding:20px 24px 64px; }
-  header.topbar{
+  #app{ display:none; }
+  .app-topbar{
     display:flex; align-items:center; justify-content:space-between; gap:16px;
-    padding:6px 0 20px;
+    padding:12px 24px; background:var(--brand-dark); position:sticky; top:0; z-index:30;
   }
-  .brand{ display:flex; align-items:center; gap:12px; }
-  .brand p{ font-size:12px; color:var(--text-secondary); margin:4px 0 0; }
+  .app-topbar .tz-wordmark .tz-terra{ color:#fff; }
+  .app-topbar .tz-wordmark .tz-zoo{ color:var(--brand-muted); }
+  .app-topbar .tz-tagline{ color:rgba(255,255,255,0.55); }
   .topbar-actions{ display:flex; align-items:center; gap:10px; }
   .user-chip{
-    display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-secondary);
-    background:var(--chip-bg); border-radius:999px; padding:6px 12px 6px 6px;
+    display:flex; align-items:center; gap:8px; font-size:12.5px; color:rgba(255,255,255,0.85);
+    background:rgba(255,255,255,0.1); border-radius:999px; padding:6px 12px 6px 6px;
   }
   .user-chip .avatar{
     width:22px; height:22px; border-radius:50%; background:var(--series-real); color:#fff;
     display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
   }
+  .app-topbar .btn-ghost{ color:rgba(255,255,255,0.85); border-color:rgba(255,255,255,0.25); }
+  .app-topbar .btn-ghost:hover{ background:rgba(255,255,255,0.12); }
+
+  .app-body{ display:flex; align-items:flex-start; }
+
+  /* ---------- Sidebar filters ---------- */
+  .sidebar{
+    flex:none; width:250px; background:var(--surface-1); border-right:1px solid var(--border);
+    position:sticky; top:57px; align-self:flex-start; max-height:calc(100vh - 57px); overflow-y:auto;
+    transition:width .16s ease;
+  }
+  .sidebar.collapsed{ width:60px; }
+  .sidebar-toggle{
+    display:flex; align-items:center; gap:10px; width:100%; appearance:none; border:none; cursor:pointer;
+    background:transparent; padding:16px; font-size:12.5px; font-weight:700; color:var(--text-secondary);
+    border-bottom:1px solid var(--border);
+  }
+  .sidebar-toggle:hover{ background:var(--chip-bg); }
+  .sidebar-toggle-bars{ display:flex; flex-direction:column; gap:3px; flex:none; }
+  .sidebar-toggle-bars span{ width:16px; height:2px; background:var(--text-secondary); border-radius:1px; }
+  .sidebar.collapsed .sidebar-toggle{ justify-content:center; }
+  .sidebar.collapsed .sidebar-toggle .sf-label{ display:none; }
+
+  .sidebar-content{ padding:10px; }
+  details.sf{ border-bottom:1px solid var(--grid); }
+  details.sf:last-of-type{ border-bottom:none; }
+  details.sf summary{
+    display:flex; align-items:center; gap:10px; padding:12px 8px; cursor:pointer;
+    font-size:13px; font-weight:600; color:var(--text-primary); border-radius:8px; list-style:none;
+  }
+  details.sf summary::-webkit-details-marker{ display:none; }
+  details.sf summary:hover{ background:var(--chip-bg); }
+  details.sf .sf-mono{
+    display:none; flex:none; width:26px; height:26px; border-radius:7px; background:var(--chip-bg);
+    align-items:center; justify-content:center; font-size:10px; font-weight:800; letter-spacing:.02em;
+    color:var(--text-secondary);
+  }
+  details.sf .sf-label{ flex:1; }
+  details.sf .cnt{ color:var(--text-secondary); font-variant-numeric:tabular-nums; font-weight:600; font-size:11.5px; }
+  .sf-body{ padding:2px 8px 14px 8px; max-height:280px; overflow:auto; }
+  .sf-panel-actions{ display:flex; gap:6px; padding:2px 4px 8px; border-bottom:1px solid var(--border); margin-bottom:6px; }
+  .sf-panel-actions a{ font-size:11.5px; color:var(--series-real); cursor:pointer; text-decoration:none; }
+  .sf-opt{ display:flex; align-items:center; gap:8px; padding:6px 6px; border-radius:6px; font-size:12.5px; cursor:pointer; }
+  .sf-opt:hover{ background:var(--chip-bg); }
+  .sf-opt input{ accent-color:var(--series-real); width:14px; height:14px; }
+  .sidebar-actions{ display:flex; flex-direction:column; gap:8px; padding:14px 8px 4px; }
+
+  .sidebar.collapsed .sidebar-content details.sf summary{ justify-content:center; padding:10px 4px; }
+  .sidebar.collapsed .sf-mono{ display:flex; }
+  .sidebar.collapsed .sf-label,
+  .sidebar.collapsed details.sf .cnt,
+  .sidebar.collapsed .sf-body,
+  .sidebar.collapsed .sidebar-actions{ display:none; }
+
+  .main-content{ flex:1; min-width:0; padding:20px 24px 64px; }
 
   .banner{
     display:flex; align-items:center; gap:10px; font-size:12.5px; border-radius:10px;
@@ -138,33 +197,6 @@
   .banner.warn{ background:var(--critical-bg); color:var(--critical); }
   .banner.ok{ background:var(--good-bg); color:var(--good); }
   .banner button{ margin-left:auto; }
-
-  /* ---------- Filters ---------- */
-  .filters-bar{
-    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
-    background:var(--surface-1); border:1px solid var(--border); border-radius:14px;
-    padding:12px 14px; margin-bottom:18px; box-shadow:var(--shadow);
-  }
-  .filters-bar .grow{ flex:1 1 auto; }
-  .ms{ position:relative; }
-  .ms-btn{
-    display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--border);
-    border-radius:9px; padding:8px 12px; font-size:12.5px; color:var(--text-primary); cursor:pointer;
-    min-width:118px; justify-content:space-between;
-  }
-  .ms-btn:hover{ border-color: var(--series-real); }
-  .ms-btn .cnt{ color:var(--text-secondary); font-variant-numeric:tabular-nums; }
-  .ms-panel{
-    position:absolute; top:calc(100% + 6px); left:0; z-index:20; min-width:220px; max-height:280px;
-    overflow:auto; background:var(--surface-1); border:1px solid var(--border); border-radius:11px;
-    box-shadow:var(--shadow); padding:8px;
-  }
-  .ms-panel-actions{ display:flex; gap:6px; padding:2px 4px 8px; border-bottom:1px solid var(--border); margin-bottom:6px; }
-  .ms-panel-actions a{ font-size:11.5px; color:var(--series-real); cursor:pointer; text-decoration:none; }
-  .ms-opt{ display:flex; align-items:center; gap:8px; padding:6px 6px; border-radius:6px; font-size:12.5px; cursor:pointer; }
-  .ms-opt:hover{ background:var(--chip-bg); }
-  .ms-opt input{ accent-color:var(--series-real); width:14px; height:14px; }
-  .filter-label{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-right:2px; }
 
   /* ---------- KPI ---------- */
   .kpi-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:20px; }
@@ -247,9 +279,16 @@
   footer{ text-align:center; font-size:11.5px; color:var(--text-muted); padding:24px 0 8px; }
   footer a{ color:var(--text-secondary); }
 
+  @media (max-width: 760px){
+    .app-body{ flex-direction:column; }
+    .sidebar{ width:100% !important; position:relative; top:0; max-height:none; border-right:none; border-bottom:1px solid var(--border); }
+    .sidebar.collapsed .sidebar-content{ display:none; }
+    .sidebar.collapsed .sf-mono{ display:none; }
+    .main-content{ width:100%; padding:16px 16px 48px; }
+  }
   @media (max-width: 640px){
     .kpi-grid{ grid-template-columns:1fr; }
-    header.topbar{ flex-direction:column; align-items:flex-start; }
+    .app-topbar{ flex-direction:column; align-items:flex-start; gap:10px; }
   }
 </style>
 </head>
@@ -283,13 +322,10 @@
 
 <!-- ============ APP ============ -->
 <div id="app">
-  <header class="topbar">
-    <div class="brand">
-      <div>
-        <div class="tz-wordmark"><span class="tz-terra">terra</span><span class="tz-zoo">ZOO</span></div>
-        <div class="tz-tagline">Análise de Despesas &middot; SG&amp;A</div>
-        <p>Análise vertical (AV%) sobre a Receita Líquida &middot; base 100%</p>
-      </div>
+  <header class="app-topbar">
+    <div class="app-topbar-brand">
+      <div class="tz-wordmark"><span class="tz-terra">terra</span><span class="tz-zoo">ZOO</span></div>
+      <div class="tz-tagline">Análise de Despesas &middot; SG&amp;A</div>
     </div>
     <div class="topbar-actions">
       <span class="user-chip"><span class="avatar" id="user-avatar">?</span><span id="user-name">—</span></span>
@@ -297,124 +333,155 @@
     </div>
   </header>
 
-  <div id="data-banner"></div>
+  <div class="app-body">
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button" title="Recolher/expandir filtros" aria-label="Recolher/expandir filtros">
+        <span class="sidebar-toggle-bars"><span></span><span></span><span></span></span>
+        <span class="sf-label">Filtros</span>
+      </button>
 
-  <div class="filters-bar" id="filters-bar">
-    <span class="filter-label">Filtros</span>
+      <div class="sidebar-content" id="sidebar-content">
+        <details class="sf" open data-kind="ano">
+          <summary><span class="sf-mono">AN</span><span class="sf-label">Ano</span><span class="cnt" data-count="ano"></span></summary>
+          <div class="sf-body" data-panel="ano"></div>
+        </details>
 
-    <div class="ms" data-ms="ano">
-      <button class="ms-btn" data-toggle="ano">Ano <span class="cnt" data-count="ano"></span></button>
-      <div class="ms-panel hidden" data-panel="ano"></div>
-    </div>
+        <details class="sf" open data-kind="mes">
+          <summary><span class="sf-mono">ME</span><span class="sf-label">Mês</span><span class="cnt" data-count="mes"></span></summary>
+          <div class="sf-body" data-panel="mes"></div>
+        </details>
 
-    <div class="ms" data-ms="mes">
-      <button class="ms-btn" data-toggle="mes">Mês <span class="cnt" data-count="mes"></span></button>
-      <div class="ms-panel hidden" data-panel="mes"></div>
-    </div>
+        <details class="sf" data-kind="loja">
+          <summary><span class="sf-mono">LJ</span><span class="sf-label">Loja</span><span class="cnt" data-count="loja"></span></summary>
+          <div class="sf-body" data-panel="loja"></div>
+        </details>
 
-    <div class="ms" data-ms="loja">
-      <button class="ms-btn" data-toggle="loja">Loja <span class="cnt" data-count="loja"></span></button>
-      <div class="ms-panel hidden" data-panel="loja"></div>
-    </div>
+        <details class="sf" data-kind="canal">
+          <summary><span class="sf-mono">CN</span><span class="sf-label">Canal</span><span class="cnt" data-count="canal"></span></summary>
+          <div class="sf-body" data-panel="canal"></div>
+        </details>
 
-    <div class="ms" data-ms="canal">
-      <button class="ms-btn" data-toggle="canal">Canal <span class="cnt" data-count="canal"></span></button>
-      <div class="ms-panel hidden" data-panel="canal"></div>
-    </div>
+        <div class="sidebar-actions">
+          <button class="btn btn-ghost btn-sm" id="btn-reset-filters">Limpar filtros</button>
+          <button class="btn btn-ghost btn-sm" id="btn-export-csv">Exportar CSV</button>
+        </div>
+      </div>
+    </aside>
 
-    <div class="grow"></div>
-    <button class="btn btn-ghost btn-sm" id="btn-reset-filters">Limpar filtros</button>
-    <button class="btn btn-ghost btn-sm" id="btn-export-csv">Exportar CSV</button>
+    <main class="main-content">
+      <div id="data-banner"></div>
+
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <div class="charts-grid">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>SG&amp;A / Receita Líquida — evolução mensal (AV%)</h2>
+              <p>Percentual do SG&amp;A total sobre a Receita Líquida, por mês</p>
+            </div>
+            <div class="legend">
+              <span class="item"><span class="swatch" style="background:var(--series-real)"></span>Realizado</span>
+              <span class="item"><span class="swatch" style="background:var(--series-orc)"></span>Orçado</span>
+            </div>
+          </div>
+          <div id="chart-trend"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Composição do SG&amp;A por linha</h2>
+              <p>AV% de cada grupo de despesa sobre a Receita Líquida</p>
+            </div>
+            <div class="legend">
+              <span class="item"><span class="swatch" style="background:var(--series-real)"></span>Realizado</span>
+              <span class="item"><span class="swatch" style="background:var(--series-orc)"></span>Orçado</span>
+            </div>
+          </div>
+          <div id="chart-bars"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Comparativo Ano a Ano</h2>
+            <p>SG&amp;A Realizado / Receita Líquida (AV%) por mês &middot; compara os anos da base independente do filtro de Ano, respeitando Loja/Canal/Mês selecionados</p>
+          </div>
+          <div class="legend" id="yoy-legend"></div>
+        </div>
+        <div id="chart-yoy"></div>
+        <div class="table-wrap" style="margin-top:18px;">
+          <table class="sga-table" id="yoy-table">
+            <thead>
+              <tr id="yoy-table-head">
+                <th>Linha</th>
+              </tr>
+            </thead>
+            <tbody id="yoy-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Detalhamento por linha do SG&amp;A</h2>
+            <p>Valores em R$ e Análise Vertical (AV%) sobre a Receita Líquida no recorte selecionado</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="sga-table" id="sga-table">
+            <thead>
+              <tr>
+                <th>Linha</th>
+                <th>Realizado (R$)</th>
+                <th>Orçado (R$)</th>
+                <th>Var. (R$)</th>
+                <th>AV% Realizado</th>
+                <th>AV% Orçado</th>
+                <th>Var. (p.p.)</th>
+              </tr>
+            </thead>
+            <tbody id="sga-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <details class="ds-details" id="ds-details">
+          <summary>Fonte de dados &amp; atualização via Google Sheets</summary>
+          <div class="ds-help">
+            Este dashboard vem com um <strong>snapshot</strong> dos dados (extraído da planilha em <span id="snapshot-date"></span>).
+            Para manter o dashboard sempre atualizado a partir da planilha do Google Sheets, publique cada aba
+            (<code>2025</code> e <code>2026</code>) como CSV — no Sheets: <em>Arquivo → Compartilhar → Publicar na web →
+            selecione a aba → formato CSV</em> — e cole os links abaixo. As colunas devem seguir a mesma ordem da planilha
+            original: <code>Mês Ano, Loja, Canal, DRE, Realizado, Orçado</code>.
+          </div>
+          <div class="ds-grid">
+            <div class="ds-field">
+              <label for="ds-url-2025">CSV publicado — aba 2025</label>
+              <input id="ds-url-2025" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=0&single=true&output=csv">
+            </div>
+            <div class="ds-field">
+              <label for="ds-url-2026">CSV publicado — aba 2026</label>
+              <input id="ds-url-2026" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=123&single=true&output=csv">
+            </div>
+          </div>
+          <div class="ds-actions">
+            <button class="btn btn-primary btn-sm" id="btn-load-sheets">Carregar do Google Sheets</button>
+            <button class="btn btn-ghost btn-sm" id="btn-use-snapshot">Usar snapshot local</button>
+          </div>
+          <div class="ds-status" id="ds-status"></div>
+        </details>
+      </div>
+
+      <footer>
+        Dashboard interno &middot; Análise de Despesas SG&amp;A &middot; dados em R$, AV% calculado sobre a Receita Líquida.
+      </footer>
+    </main>
   </div>
-
-  <div class="kpi-grid" id="kpi-grid"></div>
-
-  <div class="charts-grid">
-    <div class="panel">
-      <div class="panel-head">
-        <div>
-          <h2>SG&amp;A / Receita Líquida — evolução mensal (AV%)</h2>
-          <p>Percentual do SG&amp;A total sobre a Receita Líquida, por mês</p>
-        </div>
-        <div class="legend">
-          <span class="item"><span class="swatch" style="background:var(--series-real)"></span>Realizado</span>
-          <span class="item"><span class="swatch" style="background:var(--series-orc)"></span>Orçado</span>
-        </div>
-      </div>
-      <div id="chart-trend"></div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head">
-        <div>
-          <h2>Composição do SG&amp;A por linha</h2>
-          <p>AV% de cada grupo de despesa sobre a Receita Líquida</p>
-        </div>
-        <div class="legend">
-          <span class="item"><span class="swatch" style="background:var(--series-real)"></span>Realizado</span>
-          <span class="item"><span class="swatch" style="background:var(--series-orc)"></span>Orçado</span>
-        </div>
-      </div>
-      <div id="chart-bars"></div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>Detalhamento por linha do SG&amp;A</h2>
-        <p>Valores em R$ e Análise Vertical (AV%) sobre a Receita Líquida no recorte selecionado</p>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table class="sga-table" id="sga-table">
-        <thead>
-          <tr>
-            <th>Linha</th>
-            <th>Realizado (R$)</th>
-            <th>Orçado (R$)</th>
-            <th>Var. (R$)</th>
-            <th>AV% Realizado</th>
-            <th>AV% Orçado</th>
-            <th>Var. (p.p.)</th>
-          </tr>
-        </thead>
-        <tbody id="sga-table-body"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="panel">
-    <details class="ds-details" id="ds-details">
-      <summary>Fonte de dados &amp; atualização via Google Sheets</summary>
-      <div class="ds-help">
-        Este dashboard vem com um <strong>snapshot</strong> dos dados (extraído da planilha em <span id="snapshot-date"></span>).
-        Para manter o dashboard sempre atualizado a partir da planilha do Google Sheets, publique cada aba
-        (<code>2025</code> e <code>2026</code>) como CSV — no Sheets: <em>Arquivo → Compartilhar → Publicar na web →
-        selecione a aba → formato CSV</em> — e cole os links abaixo. As colunas devem seguir a mesma ordem da planilha
-        original: <code>Mês Ano, Loja, Canal, DRE, Realizado, Orçado</code>.
-      </div>
-      <div class="ds-grid">
-        <div class="ds-field">
-          <label for="ds-url-2025">CSV publicado — aba 2025</label>
-          <input id="ds-url-2025" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=0&single=true&output=csv">
-        </div>
-        <div class="ds-field">
-          <label for="ds-url-2026">CSV publicado — aba 2026</label>
-          <input id="ds-url-2026" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=123&single=true&output=csv">
-        </div>
-      </div>
-      <div class="ds-actions">
-        <button class="btn btn-primary btn-sm" id="btn-load-sheets">Carregar do Google Sheets</button>
-        <button class="btn btn-ghost btn-sm" id="btn-use-snapshot">Usar snapshot local</button>
-      </div>
-      <div class="ds-status" id="ds-status"></div>
-    </details>
-  </div>
-
-  <footer>
-    Dashboard interno &middot; Análise de Despesas SG&amp;A &middot; dados em R$, AV% calculado sobre a Receita Líquida.
-  </footer>
 </div>
 
 <div class="tooltip" id="tooltip"></div>
@@ -645,6 +712,51 @@ function aggregateByMonth(rows){
   });
 }
 
+/* ======================= Year-over-year comparator ======================= */
+// Always compares the oldest vs. newest year present in the whole dataset,
+// independent of the "Ano" filter — only Mês/Loja/Canal narrow it down.
+function getFilteredRowsIgnoringYear(){
+  var f = state.filters;
+  return state.data.filter(function(r){
+    return f.mes.has(r.mes) && f.loja.has(r.loja) && f.canal.has(r.canal);
+  });
+}
+
+function getYoYYears(){
+  var years = state.options.ano.slice().sort(function(a,b){ return a - b; });
+  if (years.length < 2) return null;
+  return [years[0], years[years.length - 1]];
+}
+
+var YOY_COLOR_VARS = ["--yoy-a", "--yoy-b"];
+
+function computeYoYMonthly(rows, years){
+  var buckets = {};
+  rows.forEach(function(r){
+    if (!buckets[r.mes]) buckets[r.mes] = {};
+    if (!buckets[r.mes][r.ano]) buckets[r.mes][r.ano] = [];
+    buckets[r.mes][r.ano].push(r);
+  });
+  var months = Object.keys(buckets).map(Number).sort(function(a,b){ return a - b; });
+  return months.map(function(m){
+    var entry = { mes:m, label: MONTH_NAMES[m], values:[] };
+    years.forEach(function(y){
+      var subset = buckets[m][y] || [];
+      var t = aggregateTotals(subset);
+      entry.values.push({ ano:y, avR: subset.length ? t.avR : null });
+    });
+    return entry;
+  });
+}
+
+function computeYoYLines(rows, years){
+  return years.map(function(y){
+    var subset = rows.filter(function(r){ return r.ano === y; });
+    var agg = aggregateByLine(subset);
+    return { ano:y, lines:agg, total:agg.total };
+  });
+}
+
 /* ======================= Multi-select filter UI ======================= */
 var MS_LABELS = { ano:"Ano", mes:"Mês", loja:"Loja", canal:"Canal" };
 function optionLabel(kind, v){
@@ -656,7 +768,7 @@ function renderFilterPanels(){
   ["ano","mes","loja","canal"].forEach(function(kind){
     var panel = document.querySelector('[data-panel="' + kind + '"]');
     panel.innerHTML = "";
-    var actions = el("div", { class:"ms-panel-actions" }, [
+    var actions = el("div", { class:"sf-panel-actions" }, [
       el("a", { onclick:function(ev){ ev.stopPropagation(); state.options[kind].forEach(function(v){ state.filters[kind].add(v); }); refreshAll(); } }, ["Todos"]),
       el("a", { onclick:function(ev){ ev.stopPropagation(); state.filters[kind].clear(); refreshAll(); } }, ["Nenhum"])
     ]);
@@ -672,30 +784,36 @@ function renderFilterPanels(){
         renderDashboardBody();
       });
       var label = el("label", { for:id }, [optionLabel(kind, v)]);
-      panel.appendChild(el("div", { class:"ms-opt" }, [input, label]));
+      panel.appendChild(el("div", { class:"sf-opt" }, [input, label]));
     });
   });
 }
 
-function closeAllFilterPanels(){
-  document.querySelectorAll(".ms-panel").forEach(function(p){ p.classList.add("hidden"); });
-}
+function initSidebarChrome(){
+  var sidebar = document.getElementById("sidebar");
+  var SIDEBAR_LS_KEY = "sga_dashboard_sidebar_collapsed_v1";
+  var collapsed = false;
+  try { collapsed = localStorage.getItem(SIDEBAR_LS_KEY) === "1"; } catch(e){}
+  if (collapsed) sidebar.classList.add("collapsed");
 
-function initFilterUIChrome(){
-  // Delegated + registered once: avoids stacking duplicate listeners on every re-render.
-  document.getElementById("filters-bar").addEventListener("click", function(ev){
-    var btn = ev.target.closest("[data-toggle]");
-    if (!btn) return;
-    ev.stopPropagation();
-    var kind = btn.getAttribute("data-toggle");
-    var panel = document.querySelector('[data-panel="' + kind + '"]');
-    var willOpen = panel.classList.contains("hidden");
-    closeAllFilterPanels();
-    if (willOpen) panel.classList.remove("hidden");
+  document.getElementById("sidebar-toggle").addEventListener("click", function(){
+    sidebar.classList.toggle("collapsed");
+    try { localStorage.setItem(SIDEBAR_LS_KEY, sidebar.classList.contains("collapsed") ? "1" : "0"); } catch(e){}
+    setTimeout(function(){ renderTrendChart(); renderBarChart(); renderYoYSection(); }, 180);
   });
-  document.addEventListener("click", function(ev){
-    if (ev.target.closest(".ms")) return; // clicks inside a filter (checkboxes, Todos/Nenhum) must not close it
-    closeAllFilterPanels();
+
+  // Clicking a filter summary while the rail is collapsed should expand the sidebar
+  // and open that section, instead of toggling <details> inside the cramped rail.
+  document.querySelectorAll("#sidebar .sf > summary").forEach(function(summary){
+    summary.addEventListener("click", function(ev){
+      if (sidebar.classList.contains("collapsed")){
+        ev.preventDefault();
+        sidebar.classList.remove("collapsed");
+        try { localStorage.setItem(SIDEBAR_LS_KEY, "0"); } catch(e){}
+        summary.parentElement.open = true;
+        setTimeout(function(){ renderTrendChart(); renderBarChart(); renderYoYSection(); }, 180);
+      }
+    });
   });
 }
 
@@ -788,22 +906,25 @@ function renderTrendChart(){
   var host = document.getElementById("chart-trend");
   host.innerHTML = "";
 
-  var W = Math.max(host.clientWidth || 560, 320), H = 260;
-  var padL = 40, padR = 54, padT = 16, padB = 30;
-  var plotW = W - padL - padR, plotH = H - padT - padB;
-
   if (monthly.length === 0){
     host.appendChild(el("div",{style:"padding:40px;text-align:center;color:var(--text-muted);font-size:13px;"},["Sem dados para os filtros selecionados."]));
     return;
   }
+
+  var W = Math.max(host.clientWidth || 560, 320), H = 280;
+  var padL = 40, padR = 16, padT = 16, padB = 30;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
 
   var vals = [];
   monthly.forEach(function(m){ if (m.avR!==null) vals.push(m.avR); if (m.avO!==null) vals.push(m.avO); });
   var maxV = vals.length ? Math.max.apply(null, vals) : 10;
   var niceMax = Math.ceil((maxV * 1.2) / 5) * 5 || 10;
 
-  var xStep = monthly.length > 1 ? plotW / (monthly.length - 1) : 0;
-  function xAt(i){ return padL + (monthly.length > 1 ? i * xStep : plotW/2); }
+  var n = monthly.length;
+  var groupW = plotW / n;
+  var barW = Math.max(4, Math.min(22, groupW * 0.32));
+  var barGap = 3;
+  function xGroupCenter(i){ return padL + groupW * (i + 0.5); }
   function yAt(v){ return padT + plotH - (v / niceMax) * plotH; }
 
   var svgNS = "http://www.w3.org/2000/svg";
@@ -828,62 +949,51 @@ function renderTrendChart(){
     lbl.textContent = v.toFixed(0) + "%";
     svg.appendChild(lbl);
   }
+
+  var baseline = document.createElementNS(svgNS,"line");
+  baseline.setAttribute("x1", padL); baseline.setAttribute("x2", W - padR);
+  baseline.setAttribute("y1", yAt(0)); baseline.setAttribute("y2", yAt(0));
+  baseline.setAttribute("class","axis-line");
+  svg.appendChild(baseline);
+
   // x labels — pick an evenly-spaced subset (always incl. first/last) so labels never collide
   var maxTicks = Math.max(2, Math.floor(plotW / 46) + 1);
   var tickIdx = [];
-  if (monthly.length <= maxTicks){
-    for (var ti=0; ti<monthly.length; ti++) tickIdx.push(ti);
+  if (n <= maxTicks){
+    for (var ti=0; ti<n; ti++) tickIdx.push(ti);
   } else {
     for (var tk=0; tk<maxTicks; tk++){
-      var idx = Math.round(tk * (monthly.length - 1) / (maxTicks - 1));
+      var idx = Math.round(tk * (n - 1) / (maxTicks - 1));
       if (tickIdx.indexOf(idx) === -1) tickIdx.push(idx);
     }
   }
   tickIdx.forEach(function(i){
-    var m = monthly[i];
     var lbl = document.createElementNS(svgNS,"text");
-    lbl.setAttribute("x", xAt(i)); lbl.setAttribute("y", H - 8);
+    lbl.setAttribute("x", xGroupCenter(i)); lbl.setAttribute("y", H - 8);
     lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","tick-label");
-    lbl.textContent = m.label;
+    lbl.textContent = monthly[i].label;
     svg.appendChild(lbl);
   });
 
-  function linePath(field){
-    var d = "";
-    monthly.forEach(function(m, i){
-      var v = m[field];
-      if (v === null || v === undefined) return;
-      d += (d ? " L " : "M ") + xAt(i) + " " + yAt(v);
-    });
-    return d;
-  }
-
-  var pathO = document.createElementNS(svgNS,"path");
-  pathO.setAttribute("d", linePath("avO"));
-  pathO.setAttribute("fill","none"); pathO.setAttribute("stroke", css("--series-orc"));
-  pathO.setAttribute("stroke-width","2"); pathO.setAttribute("stroke-linecap","round"); pathO.setAttribute("stroke-linejoin","round");
-  pathO.setAttribute("stroke-dasharray","5 4");
-  svg.appendChild(pathO);
-
-  var pathR = document.createElementNS(svgNS,"path");
-  pathR.setAttribute("d", linePath("avR"));
-  pathR.setAttribute("fill","none"); pathR.setAttribute("stroke", css("--series-real"));
-  pathR.setAttribute("stroke-width","2.5"); pathR.setAttribute("stroke-linecap","round"); pathR.setAttribute("stroke-linejoin","round");
-  svg.appendChild(pathR);
-
-  // markers + hover targets
   monthly.forEach(function(m, i){
-    [["avR","--series-real"], ["avO","--series-orc"]].forEach(function(pair){
-      var v = m[pair[0]];
+    var cx = xGroupCenter(i);
+    [["avR","--series-real", -1], ["avO","--series-orc", 1]].forEach(function(spec){
+      var v = m[spec[0]];
       if (v === null || v === undefined) return;
-      var c = document.createElementNS(svgNS,"circle");
-      c.setAttribute("cx", xAt(i)); c.setAttribute("cy", yAt(v)); c.setAttribute("r","4");
-      c.setAttribute("fill", css(pair[1])); c.setAttribute("stroke", css("--surface-1")); c.setAttribute("stroke-width","1.5");
-      svg.appendChild(c);
+      var x = cx + spec[2] * (barW/2 + barGap/2) - barW/2;
+      var y = yAt(v);
+      var h = Math.max(0, yAt(0) - y);
+      var rect = document.createElementNS(svgNS,"rect");
+      rect.setAttribute("x", x); rect.setAttribute("y", y);
+      rect.setAttribute("width", barW); rect.setAttribute("height", h);
+      rect.setAttribute("rx", 3);
+      rect.setAttribute("fill", css(spec[1]));
+      svg.appendChild(rect);
     });
+
     var hit = document.createElementNS(svgNS,"rect");
-    hit.setAttribute("x", xAt(i) - (xStep||20)/2); hit.setAttribute("y", padT);
-    hit.setAttribute("width", xStep || 40); hit.setAttribute("height", plotH);
+    hit.setAttribute("x", padL + groupW * i); hit.setAttribute("y", padT);
+    hit.setAttribute("width", groupW); hit.setAttribute("height", plotH);
     hit.setAttribute("fill","transparent");
     hit.addEventListener("mousemove", function(ev){
       var html = '<div class="t-title">' + m.label + '</div>' +
@@ -895,11 +1005,13 @@ function renderTrendChart(){
     svg.appendChild(hit);
   });
 
-  // direct label on last point
+  // direct label on the last group's Realizado bar
   var last = monthly[monthly.length - 1];
   if (last.avR !== null){
     var lr = document.createElementNS(svgNS,"text");
-    lr.setAttribute("x", xAt(monthly.length-1) + 8); lr.setAttribute("y", yAt(last.avR) + 4);
+    lr.setAttribute("x", xGroupCenter(monthly.length-1) - (barW/2 + barGap/2) - barW/2);
+    lr.setAttribute("y", yAt(last.avR) - 6);
+    lr.setAttribute("text-anchor","middle");
     lr.setAttribute("class","direct-label"); lr.setAttribute("fill", css("--series-real"));
     lr.textContent = fmtPct(last.avR, 1);
     svg.appendChild(lr);
@@ -977,6 +1089,157 @@ function renderBarChart(){
   });
 
   host.appendChild(svg);
+}
+
+/* ======================= Chart: year-over-year (vertical grouped bars) ======================= */
+function renderYoYSection(){
+  var years = getYoYYears();
+  var chartHost = document.getElementById("chart-yoy");
+  var legendHost = document.getElementById("yoy-legend");
+  var theadRow = document.getElementById("yoy-table-head");
+  var tbody = document.getElementById("yoy-table-body");
+  chartHost.innerHTML = ""; legendHost.innerHTML = ""; tbody.innerHTML = "";
+  theadRow.innerHTML = "<th>Linha</th>";
+
+  if (!years){
+    chartHost.appendChild(el("div",{style:"padding:30px;text-align:center;color:var(--text-muted);font-size:13px;"},
+      ["É preciso pelo menos 2 anos na base para comparar ano a ano."]));
+    return;
+  }
+
+  years.forEach(function(y, i){
+    legendHost.appendChild(el("span",{class:"item"},[
+      el("span",{class:"swatch", style:"background:var(" + YOY_COLOR_VARS[i % YOY_COLOR_VARS.length] + ")"}),
+      String(y)
+    ]));
+  });
+  years.forEach(function(y){
+    theadRow.appendChild(el("th",{},["AV% " + y]));
+  });
+  theadRow.appendChild(el("th",{},["Var. (p.p.)"]));
+
+  var rows = getFilteredRowsIgnoringYear();
+  renderYoYChart(computeYoYMonthly(rows, years), years, chartHost);
+  renderYoYTable(computeYoYLines(rows, years), years, tbody);
+}
+
+function renderYoYChart(monthly, years, host){
+  if (monthly.length === 0){
+    host.appendChild(el("div",{style:"padding:30px;text-align:center;color:var(--text-muted);font-size:13px;"},["Sem dados para os filtros selecionados."]));
+    return;
+  }
+
+  var W = Math.max(host.clientWidth || 900, 320), H = 280;
+  var padL = 40, padR = 16, padT = 16, padB = 30;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+
+  var vals = [];
+  monthly.forEach(function(m){ m.values.forEach(function(v){ if (v.avR!==null) vals.push(v.avR); }); });
+  var maxV = vals.length ? Math.max.apply(null, vals) : 10;
+  var niceMax = Math.ceil((maxV * 1.2) / 5) * 5 || 10;
+
+  var n = monthly.length, nSeries = years.length;
+  var groupW = plotW / n;
+  var barW = Math.max(4, Math.min(20, (groupW * 0.7) / nSeries));
+  var barGap = 3;
+  function xGroupCenter(i){ return padL + groupW * (i + 0.5); }
+  function yAt(v){ return padT + plotH - (v / niceMax) * plotH; }
+
+  var svgNS = "http://www.w3.org/2000/svg";
+  var svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", H);
+
+  var ticks = 4;
+  for (var t=0; t<=ticks; t++){
+    var v = (niceMax / ticks) * t;
+    var y = yAt(v);
+    var gl = document.createElementNS(svgNS,"line");
+    gl.setAttribute("x1", padL); gl.setAttribute("x2", W - padR);
+    gl.setAttribute("y1", y); gl.setAttribute("y2", y);
+    gl.setAttribute("class","grid-line");
+    svg.appendChild(gl);
+    var lbl = document.createElementNS(svgNS,"text");
+    lbl.setAttribute("x", padL - 8); lbl.setAttribute("y", y + 3);
+    lbl.setAttribute("text-anchor","end"); lbl.setAttribute("class","tick-label");
+    lbl.textContent = v.toFixed(0) + "%";
+    svg.appendChild(lbl);
+  }
+  var baseline = document.createElementNS(svgNS,"line");
+  baseline.setAttribute("x1", padL); baseline.setAttribute("x2", W - padR);
+  baseline.setAttribute("y1", yAt(0)); baseline.setAttribute("y2", yAt(0));
+  baseline.setAttribute("class","axis-line");
+  svg.appendChild(baseline);
+
+  var maxTicks = Math.max(2, Math.floor(plotW / 46) + 1);
+  var tickIdx = [];
+  if (n <= maxTicks){
+    for (var ti=0; ti<n; ti++) tickIdx.push(ti);
+  } else {
+    for (var tk=0; tk<maxTicks; tk++){
+      var idx = Math.round(tk * (n - 1) / (maxTicks - 1));
+      if (tickIdx.indexOf(idx) === -1) tickIdx.push(idx);
+    }
+  }
+  tickIdx.forEach(function(i){
+    var lbl = document.createElementNS(svgNS,"text");
+    lbl.setAttribute("x", xGroupCenter(i)); lbl.setAttribute("y", H - 8);
+    lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","tick-label");
+    lbl.textContent = monthly[i].label;
+    svg.appendChild(lbl);
+  });
+
+  monthly.forEach(function(m, i){
+    var cx = xGroupCenter(i);
+    var totalW = barW * nSeries + barGap * (nSeries - 1);
+    var startX = cx - totalW / 2;
+    m.values.forEach(function(val, si){
+      if (val.avR === null) return;
+      var x = startX + si * (barW + barGap);
+      var y = yAt(val.avR);
+      var h = Math.max(0, yAt(0) - y);
+      var rect = document.createElementNS(svgNS,"rect");
+      rect.setAttribute("x", x); rect.setAttribute("y", y);
+      rect.setAttribute("width", barW); rect.setAttribute("height", h);
+      rect.setAttribute("rx", 3);
+      rect.setAttribute("fill", css(YOY_COLOR_VARS[si % YOY_COLOR_VARS.length]));
+      svg.appendChild(rect);
+    });
+
+    var hit = document.createElementNS(svgNS,"rect");
+    hit.setAttribute("x", padL + groupW * i); hit.setAttribute("y", padT);
+    hit.setAttribute("width", groupW); hit.setAttribute("height", plotH);
+    hit.setAttribute("fill","transparent");
+    hit.addEventListener("mousemove", function(ev){
+      var rowsHtml = m.values.map(function(val){
+        return '<div class="t-row"><span>' + val.ano + '</span><strong>' + fmtPct(val.avR) + '</strong></div>';
+      }).join("");
+      showTooltip(ev.clientX, ev.clientY, '<div class="t-title">' + m.label + '</div>' + rowsHtml);
+    });
+    hit.addEventListener("mouseleave", hideTooltip);
+    svg.appendChild(hit);
+  });
+
+  host.appendChild(svg);
+}
+
+function renderYoYTable(perYear, years, tbody){
+  var lineDefs = LINE_DEFS.concat([{ key: TOTAL_KEY, label: TOTAL_LABEL }]);
+  lineDefs.forEach(function(def){
+    var isTotal = def.key === TOTAL_KEY;
+    var cells = [ el("td",{}, [def.label]) ];
+    var avByYear = perYear.map(function(py){
+      var found = isTotal ? py.total : py.lines.filter(function(l){ return l.key === def.key; })[0];
+      return found ? found.avR : null;
+    });
+    avByYear.forEach(function(av){ cells.push(el("td",{},[fmtPct(av)])); });
+    var varPP = (avByYear[0] !== null && avByYear[avByYear.length-1] !== null)
+      ? avByYear[avByYear.length-1] - avByYear[0] : null;
+    var ppClass = varPP === null ? "flat" : (varPP <= 0.05 ? "good" : "bad");
+    cells.push(el("td",{},[ el("span",{class:"delta "+ppClass},[fmtPP(varPP)]) ]));
+    tbody.appendChild(el("tr", { class: isTotal ? "total-row" : "" }, cells));
+  });
 }
 
 /* ======================= Data source banner + Google Sheets loader ======================= */
@@ -1196,6 +1459,7 @@ function renderDashboardBody(){
   renderTable();
   renderTrendChart();
   renderBarChart();
+  renderYoYSection();
 }
 
 function bootDashboard(){
@@ -1203,7 +1467,7 @@ function bootDashboard(){
   resetFiltersToAll();
   updateFilterButtonCounts();
   renderFilterPanels();
-  initFilterUIChrome();
+  initSidebarChrome();
   renderDashboardBody();
   initDataSourcePanel();
 
@@ -1214,12 +1478,12 @@ function bootDashboard(){
   document.getElementById("btn-export-csv").addEventListener("click", exportCSV);
 
   window.addEventListener("resize", debounce(function(){
-    renderTrendChart(); renderBarChart();
+    renderTrendChart(); renderBarChart(); renderYoYSection();
   }, 150));
 
   if (window.matchMedia){
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){
-      renderTable(); renderTrendChart(); renderBarChart();
+      renderTable(); renderTrendChart(); renderBarChart(); renderYoYSection();
     });
   }
 }
