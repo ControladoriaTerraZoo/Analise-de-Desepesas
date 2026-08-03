@@ -1,0 +1,1226 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SG&amp;A · Análise de Despesas (AV%)</title>
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:#fcfcfb; --page:#f9f9f7; --surface-2:#ffffff;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --series-real:#2a78d6; --series-orc:#eb6834;
+    --good:#0ca30c; --critical:#d03b3b; --warning:#fab219;
+    --good-bg:rgba(12,163,12,0.10); --critical-bg:rgba(208,59,59,0.10);
+    --chip-bg:#f0efec;
+    --focus:#2a78d6;
+    --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#221f1f;
+      --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+      --series-real:#3987e5; --series-orc:#d95926;
+      --good:#0ca30c; --critical:#e66767; --warning:#c98500;
+      --good-bg:rgba(12,163,12,0.16); --critical-bg:rgba(230,103,103,0.14);
+      --chip-bg:#26241f;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#221f1f;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --series-real:#3987e5; --series-orc:#d95926;
+    --good:#0ca30c; --critical:#e66767; --warning:#c98500;
+    --good-bg:rgba(12,163,12,0.16); --critical-bg:rgba(230,103,103,0.14);
+    --chip-bg:#26241f;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--page); color:var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .hidden{display:none !important;}
+  button, input, select{ font-family:inherit; }
+  ::selection{ background: var(--series-real); color:#fff; }
+
+  /* ---------- Login ---------- */
+  #login-screen{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(42,120,214,0.12), transparent),
+      radial-gradient(1000px 500px at 110% 10%, rgba(235,104,52,0.10), transparent),
+      var(--page);
+    z-index:100; padding:24px;
+  }
+  .login-card{
+    width:100%; max-width:380px; background:var(--surface-1); border:1px solid var(--border);
+    border-radius:16px; padding:32px 28px; box-shadow:var(--shadow);
+  }
+  .login-logo{
+    width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg, var(--series-real), #6da7ec); color:#fff; font-weight:700; font-size:18px;
+    margin-bottom:16px;
+  }
+  .login-card h1{ font-size:19px; margin:0 0 4px; }
+  .login-card p.sub{ color:var(--text-secondary); font-size:13px; margin:0 0 22px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+  .field input{
+    width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text-primary); font-size:14px;
+  }
+  .field input:focus{ outline:2px solid var(--focus); outline-offset:1px; }
+  .btn{
+    appearance:none; border:none; cursor:pointer; border-radius:9px; padding:10px 16px;
+    font-size:14px; font-weight:600; transition:opacity .15s ease, transform .05s ease;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{ background:var(--series-real); color:#fff; width:100%; margin-top:6px; }
+  .btn-primary:hover{ opacity:.92; }
+  .btn-ghost{ background:transparent; color:var(--text-secondary); border:1px solid var(--border); }
+  .btn-ghost:hover{ background:var(--chip-bg); }
+  .btn-sm{ padding:7px 12px; font-size:12.5px; }
+  #login-error{
+    background:var(--critical-bg); color:var(--critical); border-radius:8px; padding:8px 10px;
+    font-size:12.5px; margin-bottom:14px; display:none;
+  }
+  .login-hint{
+    margin-top:18px; padding-top:16px; border-top:1px solid var(--border);
+    font-size:11.5px; color:var(--text-muted); line-height:1.5;
+  }
+
+  /* ---------- App shell ---------- */
+  #app{ display:none; max-width:1320px; margin:0 auto; padding:20px 24px 64px; }
+  header.topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:6px 0 20px;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .mark{
+    width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg, var(--series-real), #6da7ec);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px;
+    flex:none;
+  }
+  .brand h1{ font-size:17px; margin:0; }
+  .brand p{ font-size:12px; color:var(--text-secondary); margin:2px 0 0; }
+  .topbar-actions{ display:flex; align-items:center; gap:10px; }
+  .user-chip{
+    display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-secondary);
+    background:var(--chip-bg); border-radius:999px; padding:6px 12px 6px 6px;
+  }
+  .user-chip .avatar{
+    width:22px; height:22px; border-radius:50%; background:var(--series-real); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
+  }
+
+  .banner{
+    display:flex; align-items:center; gap:10px; font-size:12.5px; border-radius:10px;
+    padding:10px 14px; margin-bottom:16px; border:1px solid var(--border);
+  }
+  .banner.warn{ background:var(--critical-bg); color:var(--critical); }
+  .banner.ok{ background:var(--good-bg); color:var(--good); }
+  .banner button{ margin-left:auto; }
+
+  /* ---------- Filters ---------- */
+  .filters-bar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    background:var(--surface-1); border:1px solid var(--border); border-radius:14px;
+    padding:12px 14px; margin-bottom:18px; box-shadow:var(--shadow);
+  }
+  .filters-bar .grow{ flex:1 1 auto; }
+  .ms{ position:relative; }
+  .ms-btn{
+    display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:9px; padding:8px 12px; font-size:12.5px; color:var(--text-primary); cursor:pointer;
+    min-width:118px; justify-content:space-between;
+  }
+  .ms-btn:hover{ border-color: var(--series-real); }
+  .ms-btn .cnt{ color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+  .ms-panel{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:20; min-width:220px; max-height:280px;
+    overflow:auto; background:var(--surface-1); border:1px solid var(--border); border-radius:11px;
+    box-shadow:var(--shadow); padding:8px;
+  }
+  .ms-panel-actions{ display:flex; gap:6px; padding:2px 4px 8px; border-bottom:1px solid var(--border); margin-bottom:6px; }
+  .ms-panel-actions a{ font-size:11.5px; color:var(--series-real); cursor:pointer; text-decoration:none; }
+  .ms-opt{ display:flex; align-items:center; gap:8px; padding:6px 6px; border-radius:6px; font-size:12.5px; cursor:pointer; }
+  .ms-opt:hover{ background:var(--chip-bg); }
+  .ms-opt input{ accent-color:var(--series-real); width:14px; height:14px; }
+  .filter-label{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-right:2px; }
+
+  /* ---------- KPI ---------- */
+  .kpi-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:20px; }
+  @media (max-width: 920px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+  .kpi-card{
+    background:var(--surface-1); border:1px solid var(--border); border-radius:14px; padding:16px 18px;
+    box-shadow:var(--shadow);
+  }
+  .kpi-card .lbl{ font-size:12px; color:var(--text-secondary); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .kpi-card .val{ font-size:23px; font-weight:650; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
+  .kpi-card .sub{ margin-top:6px; font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; }
+  .delta{ display:inline-flex; align-items:center; gap:3px; font-weight:700; font-variant-numeric:tabular-nums; padding:1px 7px; border-radius:999px; font-size:11.5px; }
+  .delta.good{ color:var(--good); background:var(--good-bg); }
+  .delta.bad{ color:var(--critical); background:var(--critical-bg); }
+  .delta.flat{ color:var(--text-muted); background:var(--chip-bg); }
+
+  /* ---------- Panels / charts ---------- */
+  .panel{
+    background:var(--surface-1); border:1px solid var(--border); border-radius:14px;
+    padding:18px 20px; box-shadow:var(--shadow); margin-bottom:18px;
+  }
+  .panel-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:4px; flex-wrap:wrap; gap:8px; }
+  .panel-head h2{ font-size:14.5px; margin:0; }
+  .panel-head p{ font-size:12px; color:var(--text-secondary); margin:2px 0 0; }
+  .legend{ display:flex; gap:14px; font-size:12px; color:var(--text-secondary); }
+  .legend .item{ display:flex; align-items:center; gap:6px; }
+  .legend .swatch{ width:10px; height:10px; border-radius:3px; flex:none; }
+
+  .charts-grid{ display:grid; grid-template-columns: 1.3fr 1fr; gap:18px; }
+  @media (max-width: 980px){ .charts-grid{ grid-template-columns:1fr; } }
+
+  svg text{ fill:var(--text-secondary); font-family:inherit; }
+  .grid-line{ stroke:var(--grid); stroke-width:1; }
+  .axis-line{ stroke:var(--axis); stroke-width:1; }
+  .tick-label{ font-size:10.5px; fill:var(--text-muted); }
+  .direct-label{ font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  .tooltip{
+    position:fixed; pointer-events:none; z-index:50; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:10px; padding:8px 10px; font-size:12px; box-shadow:var(--shadow); opacity:0; transition:opacity .08s ease;
+    max-width:240px;
+  }
+  .tooltip .t-title{ font-weight:700; margin-bottom:4px; }
+  .tooltip .t-row{ display:flex; justify-content:space-between; gap:14px; }
+  .tooltip .t-row + .t-row{ margin-top:2px; }
+
+  /* ---------- Table ---------- */
+  .table-wrap{ overflow-x:auto; }
+  table.sga-table{ width:100%; border-collapse:collapse; font-size:13px; min-width:760px; }
+  table.sga-table th, table.sga-table td{ padding:10px 12px; text-align:right; white-space:nowrap; }
+  table.sga-table th:first-child, table.sga-table td:first-child{ text-align:left; white-space:normal; }
+  table.sga-table thead th{
+    font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-muted); font-weight:600;
+    border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface-1);
+  }
+  table.sga-table tbody tr{ border-bottom:1px solid var(--grid); }
+  table.sga-table tbody tr:hover{ background:var(--chip-bg); }
+  table.sga-table tbody tr.total-row{ font-weight:700; border-top:1px solid var(--axis); border-bottom:none; }
+  table.sga-table td, table.sga-table th{ font-variant-numeric:tabular-nums; }
+  .line-name{ display:flex; align-items:center; gap:8px; }
+  .line-dot{ width:9px; height:9px; border-radius:3px; flex:none; }
+
+  /* ---------- Data source panel ---------- */
+  .ds-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px; }
+  @media (max-width: 760px){ .ds-grid{ grid-template-columns:1fr; } }
+  .ds-field label{ font-size:11.5px; color:var(--text-secondary); display:block; margin-bottom:5px; font-weight:600; }
+  .ds-field input{
+    width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text-primary); font-size:12.5px;
+  }
+  .ds-status{ font-size:12px; margin-top:10px; color:var(--text-secondary); }
+  .ds-actions{ display:flex; gap:8px; margin-top:12px; }
+  details.ds-details summary{ cursor:pointer; font-size:12.5px; color:var(--series-real); font-weight:600; list-style:none; }
+  details.ds-details summary::-webkit-details-marker{ display:none; }
+  details.ds-details summary::before{ content:"▸ "; }
+  details.ds-details[open] summary::before{ content:"▾ "; }
+  .ds-help{ font-size:12px; color:var(--text-secondary); line-height:1.6; margin-top:10px; background:var(--chip-bg); padding:10px 12px; border-radius:9px; }
+  .ds-help code{ background:var(--surface-2); padding:1px 5px; border-radius:4px; font-size:11.5px; }
+
+  footer{ text-align:center; font-size:11.5px; color:var(--text-muted); padding:24px 0 8px; }
+  footer a{ color:var(--text-secondary); }
+
+  @media (max-width: 640px){
+    .kpi-grid{ grid-template-columns:1fr; }
+    header.topbar{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen">
+  <form class="login-card" id="login-form" autocomplete="off">
+    <div class="login-logo">SG</div>
+    <h1>Análise de Despesas (SG&amp;A)</h1>
+    <p class="sub">Acesso restrito · informe seu usuário para continuar</p>
+    <div id="login-error"></div>
+    <div class="field">
+      <label for="login-email">E-mail</label>
+      <input id="login-email" type="email" placeholder="nome@terrazoo.com.br" required>
+    </div>
+    <div class="field">
+      <label for="login-pass">Senha</label>
+      <input id="login-pass" type="password" placeholder="••••••••" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Entrar</button>
+    <div class="login-hint">
+      Este é um controle de acesso simples do lado do cliente (não é um backend de autenticação).
+      Não reutilize aqui uma senha sensível — qualquer pessoa com o arquivo HTML pode ver as credenciais
+      embutidas no código-fonte.
+    </div>
+  </form>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">SG</div>
+      <div>
+        <h1>Análise de Despesas &middot; SG&amp;A (AV%)</h1>
+        <p>Análise vertical (AV%) sobre a Receita Líquida &middot; base 100%</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="user-chip"><span class="avatar" id="user-avatar">?</span><span id="user-name">—</span></span>
+      <button class="btn btn-ghost btn-sm" id="btn-logout">Sair</button>
+    </div>
+  </header>
+
+  <div id="data-banner"></div>
+
+  <div class="filters-bar" id="filters-bar">
+    <span class="filter-label">Filtros</span>
+
+    <div class="ms" data-ms="ano">
+      <button class="ms-btn" data-toggle="ano">Ano <span class="cnt" data-count="ano"></span></button>
+      <div class="ms-panel hidden" data-panel="ano"></div>
+    </div>
+
+    <div class="ms" data-ms="mes">
+      <button class="ms-btn" data-toggle="mes">Mês <span class="cnt" data-count="mes"></span></button>
+      <div class="ms-panel hidden" data-panel="mes"></div>
+    </div>
+
+    <div class="ms" data-ms="loja">
+      <button class="ms-btn" data-toggle="loja">Loja <span class="cnt" data-count="loja"></span></button>
+      <div class="ms-panel hidden" data-panel="loja"></div>
+    </div>
+
+    <div class="ms" data-ms="canal">
+      <button class="ms-btn" data-toggle="canal">Canal <span class="cnt" data-count="canal"></span></button>
+      <div class="ms-panel hidden" data-panel="canal"></div>
+    </div>
+
+    <div class="grow"></div>
+    <button class="btn btn-ghost btn-sm" id="btn-reset-filters">Limpar filtros</button>
+    <button class="btn btn-ghost btn-sm" id="btn-export-csv">Exportar CSV</button>
+  </div>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <div class="charts-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>SG&amp;A / Receita Líquida — evolução mensal (AV%)</h2>
+          <p>Percentual do SG&amp;A total sobre a Receita Líquida, por mês</p>
+        </div>
+        <div class="legend">
+          <span class="item"><span class="swatch" style="background:var(--series-real)"></span>Realizado</span>
+          <span class="item"><span class="swatch" style="background:var(--series-orc)"></span>Orçado</span>
+        </div>
+      </div>
+      <div id="chart-trend"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Composição do SG&amp;A por linha</h2>
+          <p>AV% de cada grupo de despesa sobre a Receita Líquida</p>
+        </div>
+        <div class="legend">
+          <span class="item"><span class="swatch" style="background:var(--series-real)"></span>Realizado</span>
+          <span class="item"><span class="swatch" style="background:var(--series-orc)"></span>Orçado</span>
+        </div>
+      </div>
+      <div id="chart-bars"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Detalhamento por linha do SG&amp;A</h2>
+        <p>Valores em R$ e Análise Vertical (AV%) sobre a Receita Líquida no recorte selecionado</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="sga-table" id="sga-table">
+        <thead>
+          <tr>
+            <th>Linha</th>
+            <th>Realizado (R$)</th>
+            <th>Orçado (R$)</th>
+            <th>Var. (R$)</th>
+            <th>AV% Realizado</th>
+            <th>AV% Orçado</th>
+            <th>Var. (p.p.)</th>
+          </tr>
+        </thead>
+        <tbody id="sga-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <details class="ds-details" id="ds-details">
+      <summary>Fonte de dados &amp; atualização via Google Sheets</summary>
+      <div class="ds-help">
+        Este dashboard vem com um <strong>snapshot</strong> dos dados (extraído da planilha em <span id="snapshot-date"></span>).
+        Para manter o dashboard sempre atualizado a partir da planilha do Google Sheets, publique cada aba
+        (<code>2025</code> e <code>2026</code>) como CSV — no Sheets: <em>Arquivo → Compartilhar → Publicar na web →
+        selecione a aba → formato CSV</em> — e cole os links abaixo. As colunas devem seguir a mesma ordem da planilha
+        original: <code>Mês Ano, Loja, Canal, DRE, Realizado, Orçado</code>.
+      </div>
+      <div class="ds-grid">
+        <div class="ds-field">
+          <label for="ds-url-2025">CSV publicado — aba 2025</label>
+          <input id="ds-url-2025" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=0&single=true&output=csv">
+        </div>
+        <div class="ds-field">
+          <label for="ds-url-2026">CSV publicado — aba 2026</label>
+          <input id="ds-url-2026" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=123&single=true&output=csv">
+        </div>
+      </div>
+      <div class="ds-actions">
+        <button class="btn btn-primary btn-sm" id="btn-load-sheets">Carregar do Google Sheets</button>
+        <button class="btn btn-ghost btn-sm" id="btn-use-snapshot">Usar snapshot local</button>
+      </div>
+      <div class="ds-status" id="ds-status"></div>
+    </details>
+  </div>
+
+  <footer>
+    Dashboard interno &middot; Análise de Despesas SG&amp;A &middot; dados em R$, AV% calculado sobre a Receita Líquida.
+  </footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+window.__EMBEDDED_DATA__ = [{"ano":2025,"mes":1,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1596515.65,"o":-1615171.69},"pessoal":{"r":-1056656.41,"o":-1085018.73},"comerciais":{"r":-171675.69,"o":-171363.41},"distribuicao":{"r":-11909.47,"o":-16373.28},"administrativas":{"r":-311808.47,"o":-297084.17},"tributarias":{"r":-872.32,"o":-1738.83},"aluguel":{"r":-43593.29,"o":-43593.27}},{"ano":2025,"mes":1,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":275736.08,"o":314642.22},"sga_total":{"r":-163320.64,"o":-162438.97},"pessoal":{"r":-49262.72,"o":-60908.35},"comerciais":{"r":-21012.68,"o":-11057.23},"distribuicao":{"r":-26765.07,"o":-21513.75},"administrativas":{"r":-23440.88,"o":-27370.76},"tributarias":{"r":-1176.6,"o":-751.38},"aluguel":{"r":-40837.52,"o":-40837.5}},{"ano":2025,"mes":1,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":248164.36,"o":264311.09},"sga_total":{"r":-89104.6,"o":-76592.14},"pessoal":{"r":-46561.26,"o":-36673.88},"comerciais":{"r":-4861.51,"o":-6866.28},"distribuicao":{"r":-10326.63,"o":-6152.5},"administrativas":{"r":-12134.61,"o":-12937.86},"tributarias":{"r":-1985.38,"o":-988.85},"aluguel":{"r":-8827.28,"o":-8827.25}},{"ano":2025,"mes":1,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":982580.02,"o":932397.95},"sga_total":{"r":-252575.13,"o":-220000.9},"pessoal":{"r":-108898.76,"o":-98001.68},"comerciais":{"r":-42377.37,"o":-30423.26},"distribuicao":{"r":-3475.49,"o":-3027.9},"administrativas":{"r":-33446.17,"o":-26146.13},"tributarias":{"r":-9213.65,"o":-6346.63},"aluguel":{"r":-44707.67,"o":-44707.67}},{"ano":2025,"mes":1,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":341581.93,"o":365423.53},"sga_total":{"r":-249283.14,"o":-221024.98},"pessoal":{"r":-76989.77,"o":-78985.42},"comerciais":{"r":-35174.03,"o":-14568.42},"distribuicao":{"r":-21912.25,"o":-8880.0},"administrativas":{"r":-46919.92,"o":-51360.84},"tributarias":{"r":-5525.15,"o":-4982.42},"aluguel":{"r":-62247.91,"o":-62247.88}},{"ano":2025,"mes":1,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-571472.39,"o":-467728.78},"pessoal":{"r":-313109.46,"o":-249220.85},"comerciais":{"r":-41580.27,"o":-27226.45},"distribuicao":{"r":-86319.83,"o":-85142.72},"administrativas":{"r":-78693.01,"o":-56351.49},"tributarias":{"r":-4721.37,"o":-2738.83},"aluguel":{"r":-47048.45,"o":-47048.44}},{"ano":2025,"mes":1,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":422630.39,"o":530855.38},"sga_total":{"r":-97836.11,"o":-108388.7},"pessoal":{"r":-43310.23,"o":-47604.23},"comerciais":{"r":-9051.64,"o":-12233.37},"distribuicao":{"r":-2114.17,"o":-1652.0},"administrativas":{"r":-24383.91,"o":-25651.62},"tributarias":{"r":-3399.52,"o":-3209.19},"aluguel":{"r":-9959.07,"o":-9959.07}},{"ano":2025,"mes":1,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":233396.73,"o":243787.79},"sga_total":{"r":-70564.43,"o":-66128.39},"pessoal":{"r":-32516.93,"o":-27737.77},"comerciais":{"r":-6218.42,"o":-6756.72},"distribuicao":{"r":-1644.88,"o":-1002.13},"administrativas":{"r":-9246.29,"o":-9708.79},"tributarias":{"r":-1617.2,"o":-1455.54},"aluguel":{"r":-15261.89,"o":-15261.88}},{"ano":2025,"mes":1,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1925849.28,"o":2012596.26},"sga_total":{"r":-440957.89,"o":-427609.42},"pessoal":{"r":-218837.51,"o":-221439.85},"comerciais":{"r":-67746.9,"o":-58198.66},"distribuicao":{"r":-4646.24,"o":-4065.0},"administrativas":{"r":-49681.89,"o":-54251.82},"tributarias":{"r":-13169.63,"o":-11895.72},"aluguel":{"r":-53281.23,"o":-53282.0}},{"ano":2025,"mes":1,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":156899.15,"o":152030.28},"sga_total":{"r":-51949.05,"o":-56356.54},"pessoal":{"r":-23668.99,"o":-28646.63},"comerciais":{"r":-4626.24,"o":-4739.0},"distribuicao":{"r":-1047.5,"o":-1092.88},"administrativas":{"r":-10166.64,"o":-9667.87},"tributarias":{"r":-1439.68,"o":-1210.16},"aluguel":{"r":-11000.0,"o":-11000.0}},{"ano":2025,"mes":1,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":340416.82,"o":376525.91},"sga_total":{"r":-217649.45,"o":-206826.27},"pessoal":{"r":-70285.77,"o":-80959.53},"comerciais":{"r":-35798.31,"o":-16280.67},"distribuicao":{"r":-14490.58,"o":-14062.5},"administrativas":{"r":-36857.75,"o":-30475.34},"tributarias":{"r":-1441.06,"o":-1270.42},"aluguel":{"r":-58122.88,"o":-58124.1}},{"ano":2025,"mes":1,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1406585.17,"o":1523998.6},"sga_total":{"r":-290541.62,"o":-279758.25},"pessoal":{"r":-133958.23,"o":-118508.13},"comerciais":{"r":-44755.49,"o":-40090.94},"distribuicao":{"r":-2716.21,"o":-2943.5},"administrativas":{"r":-35720.66,"o":-41790.29},"tributarias":{"r":-9222.05,"o":-8803.97},"aluguel":{"r":-46556.14,"o":-46556.05}},{"ano":2025,"mes":1,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":583464.44,"o":654298.43},"sga_total":{"r":-185291.84,"o":-165963.52},"pessoal":{"r":-83856.21,"o":-70338.15},"comerciais":{"r":-30430.25,"o":-18454.66},"distribuicao":{"r":-17148.58,"o":-22260.0},"administrativas":{"r":-25006.01,"o":-25902.78},"tributarias":{"r":-2940.84,"o":-2559.15},"aluguel":{"r":-18236.29,"o":-17240.0}},{"ano":2025,"mes":1,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":4009499.28,"o":3662305.75},"sga_total":{"r":-671084.77,"o":-648372.66},"pessoal":{"r":-48046.14,"o":-61172.8},"comerciais":{"r":-147746.72,"o":-116860.34},"distribuicao":{"r":-14419.25,"o":-23366.92},"administrativas":{"r":-17472.09,"o":-17050.29},"tributarias":{"r":-3189.77,"o":-928.43},"aluguel":{"r":-21616.78,"o":-22512.63}},{"ano":2025,"mes":1,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":288919.12,"o":273842.29},"sga_total":{"r":-100222.89,"o":-112186.62},"pessoal":{"r":-48510.54,"o":-58279.41},"comerciais":{"r":-7157.2,"o":-7276.27},"distribuicao":{"r":-2096.95,"o":-2030.0},"administrativas":{"r":-16362.24,"o":-17387.76},"tributarias":{"r":-2632.5,"o":-1401.71},"aluguel":{"r":-20900.08,"o":-21945.07}},{"ano":2025,"mes":1,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":151559.45,"o":189570.66},"sga_total":{"r":-85581.69,"o":-74361.94},"pessoal":{"r":-26648.22,"o":-32248.49},"comerciais":{"r":-15113.31,"o":-5029.49},"distribuicao":{"r":-16651.33,"o":-14244.25},"administrativas":{"r":-15898.07,"o":-11899.32},"tributarias":{"r":-380.76,"o":-50.39},"aluguel":{"r":-10890.0,"o":-10890.0}},{"ano":2025,"mes":1,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":515671.86,"o":475829.1},"sga_total":{"r":-111098.12,"o":-103726.61},"pessoal":{"r":-57706.67,"o":-56266.57},"comerciais":{"r":-12490.55,"o":-10778.03},"distribuicao":{"r":-2123.23,"o":-1874.6},"administrativas":{"r":-19298.33,"o":-18351.5},"tributarias":{"r":-4695.65,"o":-2222.18},"aluguel":{"r":-7578.3,"o":-7578.26}},{"ano":2025,"mes":1,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":448770.26,"o":450694.51},"sga_total":{"r":-121053.71,"o":-120095.35},"pessoal":{"r":-69702.1,"o":-57783.29},"comerciais":{"r":-5405.25,"o":-9163.67},"distribuicao":{"r":-9420.63,"o":-13135.0},"administrativas":{"r":-18068.04,"o":-18988.64},"tributarias":{"r":-2782.31,"o":-1894.46},"aluguel":{"r":-12948.23,"o":-12948.25}},{"ano":2025,"mes":1,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":305753.2,"o":350469.58},"sga_total":{"r":-137191.64,"o":-123112.49},"pessoal":{"r":-63650.61,"o":-51424.94},"comerciais":{"r":-18961.17,"o":-21916.8},"distribuicao":{"r":-543.88,"o":-1514.8},"administrativas":{"r":-21576.99,"o":-16879.94},"tributarias":{"r":-3686.04,"o":-3583.27},"aluguel":{"r":-20063.37,"o":-20063.35}},{"ano":2025,"mes":1,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":381146.0,"o":411747.67},"sga_total":{"r":-118341.37,"o":-118320.7},"pessoal":{"r":-55450.76,"o":-61714.16},"comerciais":{"r":-13643.63,"o":-11597.38},"distribuicao":{"r":-1650.76,"o":-1519.0},"administrativas":{"r":-15589.87,"o":-14893.68},"tributarias":{"r":-2285.44,"o":-2268.78},"aluguel":{"r":-19749.19,"o":-18647.89}},{"ano":2025,"mes":1,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-77488.79,"o":-72355.94},"pessoal":{"r":-49649.12,"o":-42473.18},"comerciais":{"r":-47.0,"o":-1400.0},"distribuicao":{"r":-7854.32,"o":-8315.0},"administrativas":{"r":-2445.13,"o":-2913.69},"tributarias":{"r":-2445.93,"o":-2206.79},"aluguel":{"r":-15047.29,"o":-15047.28}},{"ano":2025,"mes":1,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":205456.36,"o":209005.98},"sga_total":{"r":-84860.43,"o":-60640.89},"pessoal":{"r":-29740.0,"o":-29488.67},"comerciais":{"r":-29382.21,"o":-4634.71},"distribuicao":{"r":-5771.0,"o":-5865.0},"administrativas":{"r":-9920.11,"o":-10626.29},"tributarias":{"r":-972.11,"o":-951.22},"aluguel":{"r":-9075.0,"o":-9075.0}},{"ano":2025,"mes":1,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":311965.06,"o":305361.42},"sga_total":{"r":-99573.69,"o":-96159.07},"pessoal":{"r":-39709.79,"o":-40821.76},"comerciais":{"r":-11191.86,"o":-9190.86},"distribuicao":{"r":-1922.9,"o":-1469.65},"administrativas":{"r":-14484.28,"o":-13384.08},"tributarias":{"r":-4139.64,"o":-2349.42},"aluguel":{"r":-24189.55,"o":-24177.66}},{"ano":2025,"mes":1,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":235342.16,"o":204543.59},"sga_total":{"r":-60291.71,"o":-60213.55},"pessoal":{"r":-27297.12,"o":-26391.11},"comerciais":{"r":-6130.44,"o":-4903.29},"distribuicao":{"r":-1600.45,"o":-1531.2},"administrativas":{"r":-8460.59,"o":-10913.49},"tributarias":{"r":-1375.61,"o":-275.58},"aluguel":{"r":-15427.5,"o":-16198.88}},{"ano":2025,"mes":2,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1602641.5,"o":-1638395.56},"pessoal":{"r":-1119094.19,"o":-1134706.23},"comerciais":{"r":-138885.49,"o":-149584.78},"distribuicao":{"r":-9101.2,"o":-16373.28},"administrativas":{"r":-296658.94,"o":-294940.17},"tributarias":{"r":-131.44,"o":-1738.83},"aluguel":{"r":-38770.24,"o":-41052.27}},{"ano":2025,"mes":2,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":296129.82,"o":287275.4},"sga_total":{"r":-159992.64,"o":-172681.84},"pessoal":{"r":-52665.46,"o":-67765.31},"comerciais":{"r":-19190.47,"o":-11478.03},"distribuicao":{"r":-21966.12,"o":-21513.75},"administrativas":{"r":-23522.81,"o":-30335.87},"tributarias":{"r":-1341.08,"o":-751.38},"aluguel":{"r":-40837.52,"o":-40837.5}},{"ano":2025,"mes":2,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":221054.2,"o":226901.98},"sga_total":{"r":-75748.72,"o":-72573.62},"pessoal":{"r":-38236.25,"o":-33643.73},"comerciais":{"r":-4731.69,"o":-6563.2},"distribuicao":{"r":-7828.14,"o":-6152.5},"administrativas":{"r":-11259.78,"o":-12757.76},"tributarias":{"r":-1048.54,"o":-1009.32},"aluguel":{"r":-8827.28,"o":-8827.25}},{"ano":2025,"mes":2,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":1008339.16,"o":822843.93},"sga_total":{"r":-256095.94,"o":-215562.64},"pessoal":{"r":-120238.87,"o":-98450.92},"comerciais":{"r":-42728.81,"o":-27613.1},"distribuicao":{"r":-2846.26,"o":-3027.9},"administrativas":{"r":-25912.18,"o":-25559.95},"tributarias":{"r":-7436.54,"o":-6027.26},"aluguel":{"r":-44707.67,"o":-44707.67}},{"ano":2025,"mes":2,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":352233.29,"o":325984.76},"sga_total":{"r":-253765.29,"o":-221513.02},"pessoal":{"r":-85170.49,"o":-78970.32},"comerciais":{"r":-30437.95,"o":-13823.98},"distribuicao":{"r":-17437.68,"o":-8880.0},"administrativas":{"r":-51827.34,"o":-52608.42},"tributarias":{"r":-5691.82,"o":-4982.42},"aluguel":{"r":-62247.91,"o":-62247.88}},{"ano":2025,"mes":2,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-518555.59,"o":-494939.79},"pessoal":{"r":-307001.97,"o":-277746.93},"comerciais":{"r":-28185.48,"o":-28114.45},"distribuicao":{"r":-71277.46,"o":-83213.51},"administrativas":{"r":-62278.77,"o":-56077.63},"tributarias":{"r":-2763.46,"o":-2738.83},"aluguel":{"r":-47048.45,"o":-47048.44}},{"ano":2025,"mes":2,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":369108.54,"o":415916.34},"sga_total":{"r":-102734.17,"o":-103113.01},"pessoal":{"r":-48476.72,"o":-46045.08},"comerciais":{"r":-9628.52,"o":-10485.92},"distribuicao":{"r":-1445.81,"o":-1652.0},"administrativas":{"r":-25232.29,"o":-25651.62},"tributarias":{"r":-3394.06,"o":-2905.44},"aluguel":{"r":-9959.07,"o":-9959.07}},{"ano":2025,"mes":2,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":222939.24,"o":213064.89},"sga_total":{"r":-67456.35,"o":-66862.62},"pessoal":{"r":-29374.94,"o":-29597.82},"comerciais":{"r":-6073.57,"o":-6452.62},"distribuicao":{"r":-1197.3,"o":-1002.13},"administrativas":{"r":-9361.43,"o":-9464.39},"tributarias":{"r":-1476.05,"o":-1360.01},"aluguel":{"r":-15261.89,"o":-15261.88}},{"ano":2025,"mes":2,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1685152.53,"o":1738301.16},"sga_total":{"r":-406409.23,"o":-397573.37},"pessoal":{"r":-198975.77,"o":-205084.1},"comerciais":{"r":-56145.81,"o":-51200.84},"distribuicao":{"r":-4482.05,"o":-3565.0},"administrativas":{"r":-50368.92,"o":-51955.12},"tributarias":{"r":-12201.87,"o":-10978.5},"aluguel":{"r":-53281.23,"o":-53282.0}},{"ano":2025,"mes":2,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":147189.4,"o":139465.7},"sga_total":{"r":-46080.46,"o":-52629.39},"pessoal":{"r":-20260.03,"o":-25335.76},"comerciais":{"r":-5449.3,"o":-4620.4},"distribuicao":{"r":-948.9,"o":-1092.88},"administrativas":{"r":-7179.77,"o":-9431.34},"tributarias":{"r":-1242.46,"o":-1149.01},"aluguel":{"r":-11000.0,"o":-11000.0}},{"ano":2025,"mes":2,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":380737.27,"o":330586.89},"sga_total":{"r":-206254.14,"o":-207815.67},"pessoal":{"r":-74822.47,"o":-84465.41},"comerciais":{"r":-20879.46,"o":-15155.5},"distribuicao":{"r":-15131.67,"o":-14062.5},"administrativas":{"r":-35321.91,"o":-29762.43},"tributarias":{"r":-1441.06,"o":-1270.42},"aluguel":{"r":-58122.88,"o":-58124.1}},{"ano":2025,"mes":2,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1318065.09,"o":1289094.66},"sga_total":{"r":-298989.58,"o":-269958.75},"pessoal":{"r":-141155.16,"o":-118583.02},"comerciais":{"r":-48430.27,"o":-35308.6},"distribuicao":{"r":-2747.97,"o":-2943.5},"administrativas":{"r":-33240.64,"o":-40462.72},"tributarias":{"r":-8854.41,"o":-8149.7},"aluguel":{"r":-46556.14,"o":-46556.05}},{"ano":2025,"mes":2,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":519995.71,"o":565223.79},"sga_total":{"r":-162238.95,"o":-162054.88},"pessoal":{"r":-76979.39,"o":-71698.26},"comerciais":{"r":-19231.97,"o":-16644.9},"distribuicao":{"r":-22307.12,"o":-21460.0},"administrativas":{"r":-16157.91,"o":-24394.95},"tributarias":{"r":-3023.17,"o":-2491.1},"aluguel":{"r":-18236.29,"o":-17240.0}},{"ano":2025,"mes":2,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":3043701.81,"o":3586007.51},"sga_total":{"r":-616838.09,"o":-728768.78},"pessoal":{"r":-47161.31,"o":-67585.14},"comerciais":{"r":-148158.38,"o":-175011.8},"distribuicao":{"r":-11005.84,"o":-23366.92},"administrativas":{"r":-16298.12,"o":-17050.29},"tributarias":{"r":-2007.16,"o":-929.43},"aluguel":{"r":-20638.76,"o":-22512.63}},{"ano":2025,"mes":2,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":254809.28,"o":253879.34},"sga_total":{"r":-98784.37,"o":-107891.65},"pessoal":{"r":-47057.2,"o":-54689.77},"comerciais":{"r":-6696.72,"o":-7185.62},"distribuicao":{"r":-1819.82,"o":-2030.0},"administrativas":{"r":-16743.88,"o":-17116.96},"tributarias":{"r":-1677.9,"o":-1340.3},"aluguel":{"r":-22919.57,"o":-21945.07}},{"ano":2025,"mes":2,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":176234.94,"o":203924.9},"sga_total":{"r":-75916.63,"o":-74366.02},"pessoal":{"r":-27641.37,"o":-31792.49},"comerciais":{"r":-8016.6,"o":-5657.26},"distribuicao":{"r":-7669.93,"o":-14244.25},"administrativas":{"r":-21292.97,"o":-11730.63},"tributarias":{"r":-405.76,"o":-51.39},"aluguel":{"r":-10890.0,"o":-10890.0}},{"ano":2025,"mes":2,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":491620.51,"o":441350.61},"sga_total":{"r":-112396.82,"o":-99101.19},"pessoal":{"r":-61498.33,"o":-52756.67},"comerciais":{"r":-11313.54,"o":-10281.56},"distribuicao":{"r":-1901.35,"o":-1874.6},"administrativas":{"r":-17765.27,"o":-18187.16},"tributarias":{"r":-4688.74,"o":-2107.97},"aluguel":{"r":-7578.3,"o":-7578.26}},{"ano":2025,"mes":2,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":408514.03,"o":390152.99},"sga_total":{"r":-111554.31,"o":-116915.4},"pessoal":{"r":-57943.21,"o":-59094.97},"comerciais":{"r":-6233.82,"o":-8349.47},"distribuicao":{"r":-12975.76,"o":-10720.0},"administrativas":{"r":-16490.19,"o":-18988.64},"tributarias":{"r":-2888.28,"o":-1852.62},"aluguel":{"r":-12948.23,"o":-12948.25}},{"ano":2025,"mes":2,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":236648.51,"o":282122.84},"sga_total":{"r":-160663.79,"o":-128716.42},"pessoal":{"r":-89425.26,"o":-60563.2},"comerciais":{"r":-20383.5,"o":-20405.63},"distribuicao":{"r":-499.51,"o":-1514.8},"administrativas":{"r":-19710.67,"o":-16516.04},"tributarias":{"r":-3438.61,"o":-3331.47},"aluguel":{"r":-20063.37,"o":-20063.35}},{"ano":2025,"mes":2,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":366557.84,"o":350988.5},"sga_total":{"r":-130704.35,"o":-117069.75},"pessoal":{"r":-70305.12,"o":-62133.19},"comerciais":{"r":-11936.27,"o":-10479.55},"distribuicao":{"r":-1639.39,"o":-1519.0},"administrativas":{"r":-16744.13,"o":-14691.61},"tributarias":{"r":-2310.98,"o":-2023.33},"aluguel":{"r":-19749.19,"o":-19580.29}},{"ano":2025,"mes":2,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-58345.64,"o":-65769.31},"pessoal":{"r":-35536.83,"o":-41926.0},"comerciais":{"r":0.0,"o":-1400.0},"distribuicao":{"r":-3040.73,"o":-2715.0},"administrativas":{"r":-1922.39,"o":-2473.24},"tributarias":{"r":-2798.4,"o":-2207.79},"aluguel":{"r":-15047.29,"o":-15047.28}},{"ano":2025,"mes":2,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":175747.9,"o":182510.31},"sga_total":{"r":-56462.12,"o":-59796.99},"pessoal":{"r":-21303.64,"o":-27515.48},"comerciais":{"r":-8365.51,"o":-5257.59},"distribuicao":{"r":-7846.49,"o":-5865.0},"administrativas":{"r":-8993.53,"o":-11107.29},"tributarias":{"r":-877.95,"o":-976.63},"aluguel":{"r":-9075.0,"o":-9075.0}},{"ano":2025,"mes":2,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":300190.44,"o":296341.89},"sga_total":{"r":-94880.12,"o":-94692.97},"pessoal":{"r":-39911.49,"o":-39881.72},"comerciais":{"r":-10262.44,"o":-9098.21},"distribuicao":{"r":-2330.83,"o":-1469.65},"administrativas":{"r":-11213.19,"o":-13041.63},"tributarias":{"r":-3993.71,"o":-2305.1},"aluguel":{"r":-24263.93,"o":-24177.66}},{"ano":2025,"mes":2,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":-7297.94,"o":0.0},"sga_total":{"r":0.0,"o":0.0},"pessoal":{"r":0.0,"o":0.0},"comerciais":{"r":0.0,"o":0.0},"distribuicao":{"r":0.0,"o":0.0},"administrativas":{"r":0.0,"o":0.0},"tributarias":{"r":0.0,"o":0.0},"aluguel":{"r":0.0,"o":0.0}},{"ano":2025,"mes":2,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":211584.95,"o":178788.6},"sga_total":{"r":-57969.69,"o":-59229.03},"pessoal":{"r":-25975.53,"o":-25809.11},"comerciais":{"r":-4518.82,"o":-4627.55},"distribuicao":{"r":-1456.47,"o":-1531.2},"administrativas":{"r":-8560.01,"o":-10785.71},"tributarias":{"r":-1285.99,"o":-276.58},"aluguel":{"r":-16172.87,"o":-16198.88}},{"ano":2025,"mes":3,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1603646.1,"o":-1797157.45},"pessoal":{"r":-1129805.04,"o":-1155435.85},"comerciais":{"r":-116660.44,"o":-254917.2},"distribuicao":{"r":-11108.82,"o":-20873.28},"administrativas":{"r":-305991.62,"o":-320121.17},"tributarias":{"r":-1309.94,"o":-2738.83},"aluguel":{"r":-38770.24,"o":-43071.12}},{"ano":2025,"mes":3,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":-32519.73,"o":56541.97},"sga_total":{"r":0.0,"o":-38724.24},"pessoal":{"r":0.0,"o":-23254.26},"comerciais":{"r":0.0,"o":-1399.82},"distribuicao":{"r":0.0,"o":-1627.45},"administrativas":{"r":0.0,"o":-11686.09},"tributarias":{"r":0.0,"o":-756.62},"aluguel":{"r":0.0,"o":0.0}},{"ano":2025,"mes":3,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":322099.51,"o":338388.08},"sga_total":{"r":-161498.91,"o":-187422.21},"pessoal":{"r":-53294.7,"o":-70214.55},"comerciais":{"r":-9940.49,"o":-16102.01},"distribuicao":{"r":-23167.7,"o":-21513.75},"administrativas":{"r":-25448.46,"o":-31223.64},"tributarias":{"r":-1825.31,"o":-951.38},"aluguel":{"r":-47444.11,"o":-47416.88}},{"ano":2025,"mes":3,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":229522.56,"o":264876.59},"sga_total":{"r":-80567.95,"o":-78982.46},"pessoal":{"r":-41581.88,"o":-37536.15},"comerciais":{"r":-5831.38,"o":-7267.23},"distribuicao":{"r":-8533.25,"o":-6152.5},"administrativas":{"r":-10559.62,"o":-13926.45},"tributarias":{"r":-1397.64,"o":-986.58},"aluguel":{"r":-8827.28,"o":-8827.25}},{"ano":2025,"mes":3,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":1017282.5,"o":992984.55},"sga_total":{"r":-258873.73,"o":-238164.12},"pessoal":{"r":-124297.97,"o":-112242.0},"comerciais":{"r":-42248.8,"o":-32664.62},"distribuicao":{"r":-7828.07,"o":-3027.9},"administrativas":{"r":-23625.77,"o":-26368.96},"tributarias":{"r":-7420.76,"o":-6603.17},"aluguel":{"r":-44707.69,"o":-44707.67}},{"ano":2025,"mes":3,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":426282.59,"o":376168.43},"sga_total":{"r":-249510.67,"o":-230144.99},"pessoal":{"r":-87077.47,"o":-80165.03},"comerciais":{"r":-14882.77,"o":-16415.06},"distribuicao":{"r":-24386.22,"o":-9680.0},"administrativas":{"r":-59120.91,"o":-56654.6},"tributarias":{"r":-1176.2,"o":-4982.42},"aluguel":{"r":-62247.91,"o":-62247.88}},{"ano":2025,"mes":3,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-517861.63,"o":-512525.82},"pessoal":{"r":-297193.6,"o":-287834.96},"comerciais":{"r":-21826.96,"o":-33226.45},"distribuicao":{"r":-85804.12,"o":-84492.25},"administrativas":{"r":-63025.04,"o":-57184.89},"tributarias":{"r":-2963.46,"o":-2738.83},"aluguel":{"r":-47048.45,"o":-47048.44}},{"ano":2025,"mes":3,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":391471.79,"o":463657.1},"sga_total":{"r":-88536.74,"o":-92571.98},"pessoal":{"r":-45579.39,"o":-47671.37},"comerciais":{"r":-10229.82,"o":-11367.15},"distribuicao":{"r":-1419.81,"o":-1652.0},"administrativas":{"r":-14399.4,"o":-11704.17},"tributarias":{"r":-3530.79,"o":-2957.77},"aluguel":{"r":-9959.07,"o":-9959.07}},{"ano":2025,"mes":3,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":222448.12,"o":250695.15},"sga_total":{"r":-67125.37,"o":-72176.73},"pessoal":{"r":-31098.95,"o":-30826.56},"comerciais":{"r":-6437.97,"o":-7318.42},"distribuicao":{"r":-1157.63,"o":-1502.13},"administrativas":{"r":-7901.45,"o":-10907.56},"tributarias":{"r":-1632.8,"o":-1479.32},"aluguel":{"r":-14788.74,"o":-15663.12}},{"ano":2025,"mes":3,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1855369.35,"o":2003741.18},"sga_total":{"r":-404182.27,"o":-426167.28},"pessoal":{"r":-205564.18,"o":-225657.78},"comerciais":{"r":-58289.16,"o":-58555.45},"distribuicao":{"r":-2692.14,"o":-4065.0},"administrativas":{"r":-37492.78,"o":-47441.43},"tributarias":{"r":-13222.03,"o":-11897.74},"aluguel":{"r":-53281.23,"o":-53282.0}},{"ano":2025,"mes":3,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":149173.31,"o":151588.83},"sga_total":{"r":-46216.1,"o":-54896.49},"pessoal":{"r":-20941.49,"o":-25675.51},"comerciais":{"r":-4806.46,"o":-5008.03},"distribuicao":{"r":-935.95,"o":-1092.88},"administrativas":{"r":-6726.87,"o":-10910.19},"tributarias":{"r":-1303.74,"o":-1209.88},"aluguel":{"r":-11501.59,"o":-11000.0}},{"ano":2025,"mes":3,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":404104.4,"o":378376.58},"sga_total":{"r":-196499.48,"o":-215668.4},"pessoal":{"r":-70338.86,"o":-85803.29},"comerciais":{"r":-25691.94,"o":-18017.98},"distribuicao":{"r":-6145.88,"o":-14062.5},"administrativas":{"r":-34004.56,"o":-32648.74},"tributarias":{"r":-1676.18,"o":-1270.42},"aluguel":{"r":-58122.88,"o":-58124.1}},{"ano":2025,"mes":3,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1404032.57,"o":1482173.27},"sga_total":{"r":-288089.08,"o":-288326.81},"pessoal":{"r":-144981.15,"o":-132166.86},"comerciais":{"r":-38487.45,"o":-40264.48},"distribuicao":{"r":-2310.98,"o":-2943.5},"administrativas":{"r":-29717.91,"o":-36579.59},"tributarias":{"r":-9665.6,"o":-8681.59},"aluguel":{"r":-46556.14,"o":-46556.05}},{"ano":2025,"mes":3,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":542770.37,"o":657930.88},"sga_total":{"r":-147834.86,"o":-169157.5},"pessoal":{"r":-83823.86,"o":-74085.4},"comerciais":{"r":-16770.91,"o":-19910.27},"distribuicao":{"r":-7989.15,"o":-22660.0},"administrativas":{"r":-13031.76,"o":-23045.78},"tributarias":{"r":-2959.92,"o":-2583.06},"aluguel":{"r":-18236.29,"o":-17240.0}},{"ano":2025,"mes":3,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":2718709.72,"o":3316740.55},"sga_total":{"r":-573050.75,"o":-625946.84},"pessoal":{"r":-49288.41,"o":-65746.24},"comerciais":{"r":-115795.29,"o":-106290.27},"distribuicao":{"r":-9650.58,"o":-23366.92},"administrativas":{"r":-16931.24,"o":-17050.29},"tributarias":{"r":-2142.05,"o":-930.43},"aluguel":{"r":-20638.76,"o":-22512.63}},{"ano":2025,"mes":3,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":290365.67,"o":310094.43},"sga_total":{"r":-101953.85,"o":-112934.9},"pessoal":{"r":-49426.65,"o":-56611.07},"comerciais":{"r":-6887.86,"o":-8384.73},"distribuicao":{"r":-2120.53,"o":-2530.0},"administrativas":{"r":-15708.38,"o":-17473.47},"tributarias":{"r":-1836.15,"o":-1516.85},"aluguel":{"r":-21909.82,"o":-21945.07}},{"ano":2025,"mes":3,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":182852.84,"o":186033.18},"sga_total":{"r":-81237.9,"o":-76132.56},"pessoal":{"r":-27179.07,"o":-32480.86},"comerciais":{"r":-9582.27,"o":-5647.78},"distribuicao":{"r":-18626.94,"o":-14959.25},"administrativas":{"r":-14499.41,"o":-12102.28},"tributarias":{"r":-460.21,"o":-52.39},"aluguel":{"r":-10890.0,"o":-10890.0}},{"ano":2025,"mes":3,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":513525.87,"o":494944.4},"sga_total":{"r":-96292.98,"o":-91537.21},"pessoal":{"r":-53869.74,"o":-51462.52},"comerciais":{"r":-11386.85,"o":-11434.89},"distribuicao":{"r":-1861.64,"o":-1874.6},"administrativas":{"r":-10563.7,"o":-9601.08},"tributarias":{"r":-4796.24,"o":-2312.27},"aluguel":{"r":-7578.3,"o":-7578.26}},{"ano":2025,"mes":3,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":409560.84,"o":455739.68},"sga_total":{"r":-116663.92,"o":-117143.13},"pessoal":{"r":-61477.83,"o":-61005.22},"comerciais":{"r":-4968.12,"o":-9236.44},"distribuicao":{"r":-20524.43,"o":-13135.0},"administrativas":{"r":-11012.08,"o":-12981.94},"tributarias":{"r":-3007.34,"o":-1913.42},"aluguel":{"r":-12948.23,"o":-12948.25}},{"ano":2025,"mes":3,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":288179.63,"o":333089.46},"sga_total":{"r":-144605.54,"o":-134086.86},"pessoal":{"r":-77229.23,"o":-61971.09},"comerciais":{"r":-13600.72,"o":-21704.93},"distribuicao":{"r":-1231.12,"o":-2014.8},"administrativas":{"r":-22422.43,"o":-17201.79},"tributarias":{"r":-3691.38,"o":-3502.8},"aluguel":{"r":-20978.22,"o":-20063.35}},{"ano":2025,"mes":3,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":400203.94,"o":437384.75},"sga_total":{"r":-133877.59,"o":-124515.87},"pessoal":{"r":-76157.78,"o":-64389.91},"comerciais":{"r":-11935.06,"o":-12614.72},"distribuicao":{"r":-1618.76,"o":-1519.0},"administrativas":{"r":-14495.6,"o":-15419.25},"tributarias":{"r":-2468.46,"o":-2398.26},"aluguel":{"r":-19749.19,"o":-19580.29}},{"ano":2025,"mes":3,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-81.27,"o":-0.01},"sga_total":{"r":-57942.88,"o":-65927.43},"pessoal":{"r":-34263.74,"o":-42044.6},"comerciais":{"r":-2808.6,"o":-1400.0},"distribuicao":{"r":-1790.35,"o":-2715.0},"administrativas":{"r":-2111.93,"o":-2511.76},"tributarias":{"r":-2808.18,"o":-2208.79},"aluguel":{"r":-14160.08,"o":-15047.28}},{"ano":2025,"mes":3,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":196273.21,"o":207250.23},"sga_total":{"r":-56205.97,"o":-62154.01},"pessoal":{"r":-24016.4,"o":-29841.91},"comerciais":{"r":-6767.1,"o":-4969.47},"distribuicao":{"r":-5440.01,"o":-6365.0},"administrativas":{"r":-9504.35,"o":-10957.03},"tributarias":{"r":-989.29,"o":-945.6},"aluguel":{"r":-9488.82,"o":-9075.0}},{"ano":2025,"mes":3,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":345593.57,"o":331246.93},"sga_total":{"r":-94129.26,"o":-99496.8},"pessoal":{"r":-35994.8,"o":-42334.15},"comerciais":{"r":-11865.64,"o":-10114.06},"distribuicao":{"r":-1446.36,"o":-1469.65},"administrativas":{"r":-11718.05,"o":-13553.62},"tributarias":{"r":-4208.26,"o":-2472.58},"aluguel":{"r":-24197.53,"o":-24177.66}},{"ano":2025,"mes":3,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":-25361.82,"o":68713.69},"sga_total":{"r":-8222.6,"o":-126099.3},"pessoal":{"r":0.0,"o":-54884.79},"comerciais":{"r":-3313.87,"o":-2236.93},"distribuicao":{"r":-400.0,"o":-2861.65},"administrativas":{"r":-4249.5,"o":-29126.83},"tributarias":{"r":-259.23,"o":-689.1},"aluguel":{"r":0.0,"o":-36300.0}},{"ano":2025,"mes":3,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":219151.51,"o":198317.6},"sga_total":{"r":-55976.91,"o":-60906.86},"pessoal":{"r":-24628.56,"o":-26248.76},"comerciais":{"r":-5265.34,"o":-5057.23},"distribuicao":{"r":-1430.98,"o":-2031.2},"administrativas":{"r":-7106.8,"o":-11093.21},"tributarias":{"r":-1372.36,"o":-277.58},"aluguel":{"r":-16172.87,"o":-16198.88}},{"ano":2025,"mes":4,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1558615.24,"o":-1697553.74},"pessoal":{"r":-1025569.42,"o":-1122204.35},"comerciais":{"r":-186853.41,"o":-173712.14},"distribuicao":{"r":-7797.3,"o":-22673.28},"administrativas":{"r":-291446.46,"o":-334154.02},"tributarias":{"r":-8178.41,"o":-1738.83},"aluguel":{"r":-38770.24,"o":-43071.12}},{"ano":2025,"mes":4,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":51268.01,"o":95657.9},"sga_total":{"r":-16806.95,"o":-40586.68},"pessoal":{"r":-12729.19,"o":-24637.4},"comerciais":{"r":-2764.01,"o":-2579.22},"distribuicao":{"r":-650.0,"o":-1627.45},"administrativas":{"r":-188.12,"o":-10956.6},"tributarias":{"r":-475.63,"o":-786.01},"aluguel":{"r":0.0,"o":0.0}},{"ano":2025,"mes":4,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":327341.04,"o":343830.92},"sga_total":{"r":-166553.46,"o":-184297.02},"pessoal":{"r":-66143.27,"o":-71910.08},"comerciais":{"r":-11215.38,"o":-12410.41},"distribuicao":{"r":-17748.52,"o":-21513.75},"administrativas":{"r":-22705.07,"o":-30294.52},"tributarias":{"r":-832.92,"o":-751.38},"aluguel":{"r":-47444.11,"o":-47416.88}},{"ano":2025,"mes":4,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":256424.01,"o":253937.9},"sga_total":{"r":-80734.78,"o":-80275.61},"pessoal":{"r":-43305.19,"o":-40326.77},"comerciais":{"r":-4524.31,"o":-7062.87},"distribuicao":{"r":-8754.52,"o":-6152.5},"administrativas":{"r":-9167.97,"o":-12954.89},"tributarias":{"r":-1077.37,"o":-962.11},"aluguel":{"r":-9332.47,"o":-8827.25}},{"ano":2025,"mes":4,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":1003499.82,"o":919649.12},"sga_total":{"r":-280765.06,"o":-237631.02},"pessoal":{"r":-123593.53,"o":-115495.96},"comerciais":{"r":-48667.9,"o":-30591.18},"distribuicao":{"r":-5919.56,"o":-3027.9},"administrativas":{"r":-39569.67,"o":-26077.57},"tributarias":{"r":-6692.81,"o":-6482.72},"aluguel":{"r":-44707.69,"o":-44707.67}},{"ano":2025,"mes":4,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":378241.45,"o":384027.64},"sga_total":{"r":-233343.42,"o":-217805.34},"pessoal":{"r":-74758.62,"o":-72562.76},"comerciais":{"r":-19156.08,"o":-16242.3},"distribuicao":{"r":-25697.25,"o":-8880.0},"administrativas":{"r":-45607.26,"o":-52889.98},"tributarias":{"r":-5210.12,"o":-4982.42},"aluguel":{"r":-62247.91,"o":-62247.88}},{"ano":2025,"mes":4,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-485108.94,"o":-515903.62},"pessoal":{"r":-284292.69,"o":-293858.43},"comerciais":{"r":-20683.41,"o":-27226.45},"distribuicao":{"r":-74521.97,"o":-84552.19},"administrativas":{"r":-55691.29,"o":-60279.28},"tributarias":{"r":-2871.13,"o":-2938.83},"aluguel":{"r":-47048.45,"o":-47048.44}},{"ano":2025,"mes":4,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":375777.86,"o":417749.44},"sga_total":{"r":-87190.63,"o":-87989.86},"pessoal":{"r":-49403.08,"o":-45023.19},"comerciais":{"r":-9226.13,"o":-10562.76},"distribuicao":{"r":-1419.81,"o":-2152.0},"administrativas":{"r":-10842.54,"o":-10984.17},"tributarias":{"r":-2845.69,"o":-2991.99},"aluguel":{"r":-9959.07,"o":-9959.07}},{"ano":2025,"mes":4,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":221408.58,"o":245159.1},"sga_total":{"r":-66006.75,"o":-70495.81},"pessoal":{"r":-30635.44,"o":-31260.76},"comerciais":{"r":-5975.91,"o":-7161.1},"distribuicao":{"r":-1431.73,"o":-1002.13},"administrativas":{"r":-7683.01,"o":-9697.42},"tributarias":{"r":-1387.8,"o":-1462.86},"aluguel":{"r":-14788.74,"o":-15663.12}},{"ano":2025,"mes":4,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1643475.74,"o":1947346.11},"sga_total":{"r":-421726.66,"o":-424055.89},"pessoal":{"r":-214653.88,"o":-220270.04},"comerciais":{"r":-64263.69,"o":-57288.59},"distribuicao":{"r":-2707.24,"o":-8565.0},"administrativas":{"r":-38574.69,"o":-49049.27},"tributarias":{"r":-11120.27,"o":-11855.93},"aluguel":{"r":-53281.23,"o":-53282.0}},{"ano":2025,"mes":4,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":136976.96,"o":151827.97},"sga_total":{"r":-43407.66,"o":-56151.7},"pessoal":{"r":-18014.1,"o":-26729.53},"comerciais":{"r":-3847.08,"o":-4968.19},"distribuicao":{"r":-935.95,"o":-1092.88},"administrativas":{"r":-7969.04,"o":-10598.96},"tributarias":{"r":-1139.9,"o":-1212.14},"aluguel":{"r":-11501.59,"o":-11550.0}},{"ano":2025,"mes":4,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":425588.36,"o":374859.07},"sga_total":{"r":-206408.71,"o":-220039.14},"pessoal":{"r":-81384.43,"o":-87900.55},"comerciais":{"r":-19396.79,"o":-17278.81},"distribuicao":{"r":-13961.63,"o":-19562.5},"administrativas":{"r":-31484.54,"o":-30517.79},"tributarias":{"r":-1378.72,"o":-1270.42},"aluguel":{"r":-58122.88,"o":-58124.1}},{"ano":2025,"mes":4,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1378048.64,"o":1448185.87},"sga_total":{"r":-317640.69,"o":-284842.17},"pessoal":{"r":-153770.57,"o":-132470.3},"comerciais":{"r":-52804.69,"o":-39172.04},"distribuicao":{"r":-3413.85,"o":-2943.5},"administrativas":{"r":-34596.31,"o":-34812.83},"tributarias":{"r":-8780.64,"o":-8783.33},"aluguel":{"r":-46556.14,"o":-46556.05}},{"ano":2025,"mes":4,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":561200.89,"o":632890.05},"sga_total":{"r":-150116.02,"o":-159471.21},"pessoal":{"r":-68852.76,"o":-66022.79},"comerciais":{"r":-21223.5,"o":-18267.58},"distribuicao":{"r":-13523.96,"o":-22260.0},"administrativas":{"r":-20515.17,"o":-23997.48},"tributarias":{"r":-2752.71,"o":-2703.5},"aluguel":{"r":-18236.29,"o":-17240.0}},{"ano":2025,"mes":4,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":2805437.55,"o":3446314.75},"sga_total":{"r":-612694.01,"o":-638537.5},"pessoal":{"r":-45194.01,"o":-62689.4},"comerciais":{"r":-153424.06,"o":-109590.44},"distribuicao":{"r":-12275.75,"o":-23366.92},"administrativas":{"r":-16831.61,"o":-17521.45},"tributarias":{"r":-2363.43,"o":-931.43},"aluguel":{"r":-20638.76,"o":-23377.85}},{"ano":2025,"mes":4,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":288699.39,"o":319545.16},"sga_total":{"r":-96926.28,"o":-106867.79},"pessoal":{"r":-45279.09,"o":-54300.41},"comerciais":{"r":-6032.4,"o":-8700.51},"distribuicao":{"r":-1948.69,"o":-2030.0},"administrativas":{"r":-15863.12,"o":-13868.06},"tributarias":{"r":-1520.14,"o":-1562.4},"aluguel":{"r":-21909.82,"o":-21945.07}},{"ano":2025,"mes":4,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":215562.79,"o":174795.79},"sga_total":{"r":-91927.03,"o":-79247.18},"pessoal":{"r":-39487.82,"o":-34271.45},"comerciais":{"r":-13223.68,"o":-5196.79},"distribuicao":{"r":-8410.76,"o":-14244.25},"administrativas":{"r":-16958.58,"o":-11868.8},"tributarias":{"r":-233.69,"o":-53.39},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2025,"mes":4,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":481334.52,"o":471765.69},"sga_total":{"r":-98297.93,"o":-92331.23},"pessoal":{"r":-57948.79,"o":-49929.82},"comerciais":{"r":-10416.9,"o":-10946.29},"distribuicao":{"r":-2743.76,"o":-5874.6},"administrativas":{"r":-9522.27,"o":-9106.76},"tributarias":{"r":-4430.55,"o":-2219.57},"aluguel":{"r":-7578.3,"o":-7578.26}},{"ano":2025,"mes":4,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":410090.72,"o":413361.31},"sga_total":{"r":-107220.79,"o":-108398.4},"pessoal":{"r":-63497.93,"o":-60157.83},"comerciais":{"r":-9305.94,"o":-8667.32},"distribuicao":{"r":-9804.93,"o":-10720.0},"administrativas":{"r":-6745.59,"o":-8910.26},"tributarias":{"r":-2189.31,"o":-1795.93},"aluguel":{"r":-12948.23,"o":-12948.25}},{"ano":2025,"mes":4,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":251110.45,"o":298914.64},"sga_total":{"r":-135890.54,"o":-134323.8},"pessoal":{"r":-74917.76,"o":-65037.31},"comerciais":{"r":-13580.18,"o":-20834.22},"distribuicao":{"r":-904.42,"o":-1514.8},"administrativas":{"r":-17571.52,"o":-16870.62},"tributarias":{"r":-3465.5,"o":-3379.11},"aluguel":{"r":-20978.22,"o":-20063.35}},{"ano":2025,"mes":4,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":402736.55,"o":385586.19},"sga_total":{"r":-132936.41,"o":-120922.84},"pessoal":{"r":-75037.37,"o":-63681.25},"comerciais":{"r":-11851.9,"o":-11379.2},"distribuicao":{"r":-1595.81,"o":-2019.0},"administrativas":{"r":-14490.03,"o":-14874.99},"tributarias":{"r":-2391.36,"o":-2166.54},"aluguel":{"r":-19749.19,"o":-19580.29}},{"ano":2025,"mes":4,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-11451.01,"o":0.0},"sga_total":{"r":-60041.18,"o":-66643.33},"pessoal":{"r":-36638.5,"o":-42180.9},"comerciais":{"r":-12.43,"o":-1400.0},"distribuicao":{"r":-3564.88,"o":-2715.0},"administrativas":{"r":-2245.55,"o":-2338.0},"tributarias":{"r":-3419.74,"o":-2209.79},"aluguel":{"r":-14160.08,"o":-15799.64}},{"ano":2025,"mes":4,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":213618.65,"o":201162.35},"sga_total":{"r":-61765.57,"o":-63958.25},"pessoal":{"r":-29309.14,"o":-28860.11},"comerciais":{"r":-5765.01,"o":-8565.55},"distribuicao":{"r":-7234.53,"o":-5865.0},"administrativas":{"r":-9194.4,"o":-10212.67},"tributarias":{"r":-773.67,"o":-926.17},"aluguel":{"r":-9488.82,"o":-9528.75}},{"ano":2025,"mes":4,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":325775.75,"o":299188.34},"sga_total":{"r":-103986.49,"o":-97882.69},"pessoal":{"r":-39480.22,"o":-42679.26},"comerciais":{"r":-11651.8,"o":-9283.48},"distribuicao":{"r":-7096.67,"o":-1469.65},"administrativas":{"r":-13718.07,"o":-13269.67},"tributarias":{"r":-3859.5,"o":-2320.61},"aluguel":{"r":-24393.09,"o":-24177.66}},{"ano":2025,"mes":4,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":143405.06,"o":137558.22},"sga_total":{"r":-102338.32,"o":-129921.79},"pessoal":{"r":-31280.06,"o":-56409.48},"comerciais":{"r":-10796.64,"o":-4276.31},"distribuicao":{"r":-4620.25,"o":-2861.65},"administrativas":{"r":-18972.91,"o":-29385.25},"tributarias":{"r":-368.46,"o":-689.1},"aluguel":{"r":-36300.0,"o":-36300.0}},{"ano":2025,"mes":4,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":225771.89,"o":192925.18},"sga_total":{"r":-57439.74,"o":-58683.44},"pessoal":{"r":-24528.35,"o":-27030.86},"comerciais":{"r":-4189.1,"o":-4933.17},"distribuicao":{"r":-1430.98,"o":-1531.2},"administrativas":{"r":-9935.83,"o":-8710.75},"tributarias":{"r":-1182.61,"o":-278.58},"aluguel":{"r":-16172.87,"o":-16198.88}},{"ano":2025,"mes":5,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-3503427.66,"o":-3461163.56},"pessoal":{"r":-2294463.68,"o":-2258728.98},"comerciais":{"r":-429715.3,"o":-447586.08},"distribuicao":{"r":-21078.84,"o":-37346.56},"administrativas":{"r":-661357.82,"o":-627882.04},"tributarias":{"r":-19271.54,"o":-3477.66},"aluguel":{"r":-77540.48,"o":-86142.24}},{"ano":2025,"mes":5,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":72298.21,"o":102649.77},"sga_total":{"r":-25544.74,"o":-40307.63},"pessoal":{"r":-17066.49,"o":-23563.15},"comerciais":{"r":-2437.57,"o":-2834.93},"distribuicao":{"r":-353.92,"o":-1627.45},"administrativas":{"r":-5185.17,"o":-11471.81},"tributarias":{"r":-501.59,"o":-810.29},"aluguel":{"r":0.0,"o":0.0}},{"ano":2025,"mes":5,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":344506.59,"o":380353.93},"sga_total":{"r":-181324.7,"o":-179152.09},"pessoal":{"r":-62586.07,"o":-65166.22},"comerciais":{"r":-14515.1,"o":-13640.02},"distribuicao":{"r":-29911.09,"o":-21513.75},"administrativas":{"r":-24979.24,"o":-30663.84},"tributarias":{"r":-1450.52,"o":-751.38},"aluguel":{"r":-47444.11,"o":-47416.88}},{"ano":2025,"mes":5,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":246353.51,"o":266231.75},"sga_total":{"r":-81935.12,"o":-77889.06},"pessoal":{"r":-42277.61,"o":-36626.63},"comerciais":{"r":-8979.69,"o":-7792.71},"distribuicao":{"r":-6223.32,"o":-6152.5},"administrativas":{"r":-10087.01,"o":-12936.97},"tributarias":{"r":-1843.95,"o":-993.57},"aluguel":{"r":-9332.47,"o":-9213.62}},{"ano":2025,"mes":5,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":1009700.3,"o":1008298.6},"sga_total":{"r":-251597.45,"o":-235906.39},"pessoal":{"r":-111349.89,"o":-109794.33},"comerciais":{"r":-45367.82,"o":-33069.27},"distribuicao":{"r":-1767.82,"o":-3027.9},"administrativas":{"r":-31296.77,"o":-26333.27},"tributarias":{"r":-6500.83,"o":-6702.58},"aluguel":{"r":-44707.71,"o":-44707.67}},{"ano":2025,"mes":5,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":389637.4,"o":420149.07},"sga_total":{"r":-251929.14,"o":-223362.75},"pessoal":{"r":-77738.39,"o":-72292.53},"comerciais":{"r":-19877.02,"o":-21829.19},"distribuicao":{"r":-37678.47,"o":-8880.0},"administrativas":{"r":-47813.52,"o":-53130.73},"tributarias":{"r":-6172.31,"o":-4982.42},"aluguel":{"r":-62247.91,"o":-62247.88}},{"ano":2025,"mes":5,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1182895.4,"o":-997415.72},"pessoal":{"r":-649853.94,"o":-550635.3},"comerciais":{"r":-66258.94,"o":-54452.9},"distribuicao":{"r":-239683.84,"o":-171879.08},"administrativas":{"r":-122500.52,"o":-120873.9},"tributarias":{"r":-5742.2,"o":-5477.66},"aluguel":{"r":-98855.96,"o":-94096.88}},{"ano":2025,"mes":5,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":398438.71,"o":409304.44},"sga_total":{"r":-95442.85,"o":-91507.57},"pessoal":{"r":-51581.3,"o":-46230.86},"comerciais":{"r":-9946.08,"o":-13346.68},"distribuicao":{"r":-2176.75,"o":-1652.0},"administrativas":{"r":-14975.14,"o":-10984.17},"tributarias":{"r":-3922.24,"o":-2752.76},"aluguel":{"r":-9454.09,"o":-10457.0}},{"ano":2025,"mes":5,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":225349.37,"o":255744.68},"sga_total":{"r":-64932.71,"o":-69945.22},"pessoal":{"r":-30141.12,"o":-30247.66},"comerciais":{"r":-5479.75,"o":-7421.52},"distribuicao":{"r":-1320.99,"o":-1002.13},"administrativas":{"r":-7589.51,"o":-9708.79},"tributarias":{"r":-1888.89,"o":-1497.17},"aluguel":{"r":-14788.74,"o":-15663.12}},{"ano":2025,"mes":5,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1753143.32,"o":1939354.47},"sga_total":{"r":-454143.88,"o":-413353.43},"pessoal":{"r":-256147.64,"o":-216465.61},"comerciais":{"r":-59380.0,"o":-57222.64},"distribuicao":{"r":-3038.72,"o":-4065.0},"administrativas":{"r":-37360.1,"o":-44917.53},"tributarias":{"r":-14297.94,"o":-11603.94},"aluguel":{"r":-50947.26,"o":-55770.94}},{"ano":2025,"mes":5,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":143961.34,"o":151909.09},"sga_total":{"r":-47251.53,"o":-59160.09},"pessoal":{"r":-21225.0,"o":-25691.56},"comerciais":{"r":-3543.39,"o":-5021.1},"distribuicao":{"r":-935.95,"o":-5092.88},"administrativas":{"r":-8529.01,"o":-10591.1},"tributarias":{"r":-1516.59,"o":-1213.45},"aluguel":{"r":-11501.59,"o":-11550.0}},{"ano":2025,"mes":5,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":420061.84,"o":398177.48},"sga_total":{"r":-223136.25,"o":-201476.74},"pessoal":{"r":-78996.31,"o":-73307.49},"comerciais":{"r":-36334.54,"o":-18289.24},"distribuicao":{"r":-16946.02,"o":-14062.5},"administrativas":{"r":-30400.38,"o":-30719.79},"tributarias":{"r":-1765.64,"o":-1270.42},"aluguel":{"r":-58122.88,"o":-58124.1}},{"ano":2025,"mes":5,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1352136.29,"o":1441123.04},"sga_total":{"r":-301848.2,"o":-286318.98},"pessoal":{"r":-141042.26,"o":-130418.12},"comerciais":{"r":-49587.06,"o":-39552.21},"distribuicao":{"r":-2310.98,"o":-2943.5},"administrativas":{"r":-33772.42,"o":-37225.44},"tributarias":{"r":-11455.26,"o":-8538.63},"aluguel":{"r":-46269.85,"o":-47976.35}},{"ano":2025,"mes":5,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":529185.67,"o":661925.69},"sga_total":{"r":-147591.4,"o":-172271.86},"pessoal":{"r":-69813.16,"o":-73442.22},"comerciais":{"r":-18449.26,"o":-23118.83},"distribuicao":{"r":-8091.71,"o":-22660.0},"administrativas":{"r":-23942.05,"o":-23065.04},"tributarias":{"r":-3614.3,"o":-2593.27},"aluguel":{"r":-17500.38,"o":-18102.0}},{"ano":2025,"mes":5,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":3909903.39,"o":3732745.9},"sga_total":{"r":-543399.59,"o":-668718.99},"pessoal":{"r":-45243.97,"o":-62709.82},"comerciais":{"r":-97590.69,"o":-118949.36},"distribuicao":{"r":-16643.48,"o":-23366.92},"administrativas":{"r":-16284.14,"o":-17521.45},"tributarias":{"r":-2522.65,"o":-932.43},"aluguel":{"r":-20454.77,"o":-23593.47}},{"ano":2025,"mes":5,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":271016.35,"o":327207.14},"sga_total":{"r":-87394.42,"o":-103991.28},"pessoal":{"r":-35337.75,"o":-50954.63},"comerciais":{"r":-7191.26,"o":-9002.81},"distribuicao":{"r":-1792.9,"o":-2030.0},"administrativas":{"r":-15571.33,"o":-13917.92},"tributarias":{"r":-2230.8,"o":-1595.09},"aluguel":{"r":-21909.82,"o":-21945.07}},{"ano":2025,"mes":5,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":181145.54,"o":204445.13},"sga_total":{"r":-90809.73,"o":-78012.96},"pessoal":{"r":-31794.69,"o":-32098.49},"comerciais":{"r":-6733.94,"o":-5860.87},"distribuicao":{"r":-19002.45,"o":-14244.25},"administrativas":{"r":-18727.29,"o":-12142.46},"tributarias":{"r":-938.86,"o":-54.39},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2025,"mes":5,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":478943.1,"o":489200.02},"sga_total":{"r":-88078.18,"o":-93087.61},"pessoal":{"r":-48115.54,"o":-53938.14},"comerciais":{"r":-10654.34,"o":-11397.23},"distribuicao":{"r":-2270.02,"o":-1874.6},"administrativas":{"r":-9002.16,"o":-9145.89},"tributarias":{"r":-5325.57,"o":-2283.2},"aluguel":{"r":-7578.3,"o":-7578.26}},{"ano":2025,"mes":5,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":444896.57,"o":463365.73},"sga_total":{"r":-103178.09,"o":-110915.46},"pessoal":{"r":-57077.8,"o":-60222.84},"comerciais":{"r":-8341.83,"o":-9338.66},"distribuicao":{"r":-11967.3,"o":-13135.0},"administrativas":{"r":-6695.17,"o":-7535.59},"tributarias":{"r":-3529.72,"o":-1936.18},"aluguel":{"r":-12948.23,"o":-12948.25}},{"ano":2025,"mes":5,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":324614.59,"o":409714.99},"sga_total":{"r":-142900.54,"o":-138428.14},"pessoal":{"r":-72683.21,"o":-63361.38},"comerciais":{"r":-17977.32,"o":-23656.03},"distribuicao":{"r":-1666.73,"o":-1514.8},"administrativas":{"r":-19615.17,"o":-16988.53},"tributarias":{"r":-3694.66,"o":-3807.61},"aluguel":{"r":-20978.22,"o":-20063.35}},{"ano":2025,"mes":5,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":369481.61,"o":430618.61},"sga_total":{"r":-120748.25,"o":-116464.92},"pessoal":{"r":-63045.85,"o":-57501.55},"comerciais":{"r":-19076.9,"o":-25030.58},"distribuicao":{"r":-3191.62,"o":-3038.0},"administrativas":{"r":-33792.96,"o":-29950.58},"tributarias":{"r":-6045.54,"o":-4698.66},"aluguel":{"r":-39498.3,"o":-39160.58}},{"ano":2025,"mes":5,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-901.7,"o":-0.02},"sga_total":{"r":-125521.6,"o":-132499.1},"pessoal":{"r":-70079.98,"o":-84326.4},"comerciais":{"r":-2395.8,"o":-2800.0},"distribuicao":{"r":-12616.68,"o":-5430.0},"administrativas":{"r":-5039.78,"o":-3921.84},"tributarias":{"r":-7069.2,"o":-4421.58},"aluguel":{"r":-28320.16,"o":-31599.28}},{"ano":2025,"mes":5,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":396287.52,"o":424272.58},"sga_total":{"r":-116394.16,"o":-119727.76},"pessoal":{"r":-47165.12,"o":-55642.96},"comerciais":{"r":-8389.32,"o":-9493.82},"distribuicao":{"r":-20798.5,"o":-11730.0},"administrativas":{"r":-18452.34,"o":-21881.08},"tributarias":{"r":-2611.24,"o":-1922.4},"aluguel":{"r":-18977.64,"o":-19057.5}},{"ano":2025,"mes":5,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":642597.46,"o":649370.56},"sga_total":{"r":-202198.82,"o":-189504.04},"pessoal":{"r":-80388.28,"o":-76357.8},"comerciais":{"r":-22282.64,"o":-20023.7},"distribuicao":{"r":-2892.74,"o":-2939.3},"administrativas":{"r":-28701.74,"o":-26839.42},"tributarias":{"r":-9421.8,"o":-4885.4},"aluguel":{"r":-49024.34,"o":-48355.32}},{"ano":2025,"mes":5,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":271339.2,"o":386818.46},"sga_total":{"r":-226934.22,"o":-260768.1},"pessoal":{"r":-92764.5,"o":-107416.78},"comerciais":{"r":-27228.24,"o":-14144.66},"distribuicao":{"r":-3015.62,"o":-5723.3},"administrativas":{"r":-30687.08,"o":-59505.16},"tributarias":{"r":-638.78,"o":-1378.2},"aluguel":{"r":-72600.0,"o":-72600.0}},{"ano":2025,"mes":5,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":451133.5,"o":405076.86},"sga_total":{"r":-113722.46,"o":-116033.48},"pessoal":{"r":-45241.1,"o":-52482.22},"comerciais":{"r":-8469.42,"o":-10502.88},"distribuicao":{"r":-2861.98,"o":-3062.4},"administrativas":{"r":-21130.44,"o":-17029.06},"tributarias":{"r":-3673.78,"o":-559.16},"aluguel":{"r":-32345.74,"o":-32397.76}},{"ano":2025,"mes":6,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1550270.33,"o":-1745768.52},"pessoal":{"r":-1020200.76,"o":-1169819.46},"comerciais":{"r":-147773.24,"o":-196154.81},"distribuicao":{"r":-9853.55,"o":-19673.28},"administrativas":{"r":-331397.28,"o":-314311.02},"tributarias":{"r":-2275.26,"o":-2738.83},"aluguel":{"r":-38770.24,"o":-43071.12}},{"ano":2025,"mes":6,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":82454.97,"o":107967.11},"sga_total":{"r":-27481.86,"o":-42035.76},"pessoal":{"r":-19825.97,"o":-24758.74},"comerciais":{"r":-2638.8,"o":-2906.61},"distribuicao":{"r":-707.86,"o":-2127.45},"administrativas":{"r":-3982.61,"o":-11416.39},"tributarias":{"r":-326.62,"o":-826.57},"aluguel":{"r":0.0,"o":0.0}},{"ano":2025,"mes":6,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":323861.89,"o":391952.61},"sga_total":{"r":-188213.16,"o":-190698.04},"pessoal":{"r":-67766.99,"o":-70027.45},"comerciais":{"r":-13307.29,"o":-14175.11},"distribuicao":{"r":-30685.8,"o":-26513.75},"administrativas":{"r":-26746.58,"o":-31813.47},"tributarias":{"r":-1863.46,"o":-751.38},"aluguel":{"r":-47444.11,"o":-47416.88}},{"ano":2025,"mes":6,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":262889.1,"o":263195.05},"sga_total":{"r":-78874.61,"o":-78748.79},"pessoal":{"r":-36181.77,"o":-36513.64},"comerciais":{"r":-4020.87,"o":-7228.94},"distribuicao":{"r":-12204.01,"o":-6152.5},"administrativas":{"r":-12381.47,"o":-14284.87},"tributarias":{"r":-2091.51,"o":-993.25},"aluguel":{"r":-8232.47,"o":-9213.62}},{"ano":2025,"mes":6,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":968256.38,"o":957586.85},"sga_total":{"r":-252507.19,"o":-248212.38},"pessoal":{"r":-108519.22,"o":-115793.28},"comerciais":{"r":-46081.97,"o":-31505.69},"distribuicao":{"r":-2839.11,"o":-8027.9},"administrativas":{"r":-30557.09,"o":-28499.67},"tributarias":{"r":-7245.67,"o":-6499.42},"aluguel":{"r":-44707.69,"o":-45705.92}},{"ano":2025,"mes":6,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":422145.98,"o":436455.16},"sga_total":{"r":-227510.08,"o":-232223.86},"pessoal":{"r":-71035.0,"o":-75853.71},"comerciais":{"r":-21444.06,"o":-20611.48},"distribuicao":{"r":-23619.32,"o":-14680.0},"administrativas":{"r":-42882.69,"o":-53678.37},"tributarias":{"r":-5352.94,"o":-5152.42},"aluguel":{"r":-62247.91,"o":-62247.88}},{"ano":2025,"mes":6,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-580857.04,"o":-486112.36},"pessoal":{"r":-346503.46,"o":-258146.93},"comerciais":{"r":-21442.83,"o":-27221.45},"distribuicao":{"r":-84703.15,"o":-88341.61},"administrativas":{"r":-75808.52,"o":-60262.68},"tributarias":{"r":-2871.1,"o":-2738.83},"aluguel":{"r":-49427.98,"o":-49400.86}},{"ano":2025,"mes":6,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":424143.82,"o":413169.6},"sga_total":{"r":-104413.02,"o":-88321.94},"pessoal":{"r":-55380.76,"o":-44606.93},"comerciais":{"r":-12367.53,"o":-10583.24},"distribuicao":{"r":-1772.49,"o":-1652.0},"administrativas":{"r":-14825.49,"o":-11704.17},"tributarias":{"r":-3143.38,"o":-2789.03},"aluguel":{"r":-9454.09,"o":-10457.0}},{"ano":2025,"mes":6,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":258412.32,"o":252083.89},"sga_total":{"r":-67209.44,"o":-78493.46},"pessoal":{"r":-31651.71,"o":-32044.35},"comerciais":{"r":-6058.5,"o":-7299.41},"distribuicao":{"r":-1196.66,"o":-5502.13},"administrativas":{"r":-6736.76,"o":-11586.05},"tributarias":{"r":-1585.63,"o":-1486.59},"aluguel":{"r":-14788.74,"o":-16024.97}},{"ano":2025,"mes":6,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1738880.7,"o":1960919.27},"sga_total":{"r":-409136.09,"o":-419008.52},"pessoal":{"r":-212775.03,"o":-219938.51},"comerciais":{"r":-57375.2,"o":-57156.34},"distribuicao":{"r":-4746.97,"o":-3565.0},"administrativas":{"r":-41175.61,"o":-45755.31},"tributarias":{"r":-12820.71,"o":-11762.64},"aluguel":{"r":-50947.26,"o":-55770.94}},{"ano":2025,"mes":6,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":153077.55,"o":144073.34},"sga_total":{"r":-48603.45,"o":-58072.57},"pessoal":{"r":-22480.31,"o":-26903.81},"comerciais":{"r":-4630.91,"o":-4809.69},"distribuicao":{"r":-942.72,"o":-1092.88},"administrativas":{"r":-7722.73,"o":-12540.5},"tributarias":{"r":-1325.19,"o":-1175.69},"aluguel":{"r":-11501.59,"o":-11550.0}},{"ano":2025,"mes":6,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":403517.31,"o":399525.41},"sga_total":{"r":-206001.4,"o":-222413.01},"pessoal":{"r":-80527.05,"o":-92210.27},"comerciais":{"r":-20586.01,"o":-18753.98},"distribuicao":{"r":-14250.76,"o":-14062.5},"administrativas":{"r":-29315.5,"o":-32071.46},"tributarias":{"r":-2582.77,"o":-1270.42},"aluguel":{"r":-58122.88,"o":-58124.1}},{"ano":2025,"mes":6,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1423811.19,"o":1481735.67},"sga_total":{"r":-309488.93,"o":-297295.16},"pessoal":{"r":-139098.99,"o":-141048.46},"comerciais":{"r":-49993.08,"o":-39865.62},"distribuicao":{"r":-2448.96,"o":-2943.5},"administrativas":{"r":-41992.37,"o":-35242.93},"tributarias":{"r":-9824.02,"o":-8709.04},"aluguel":{"r":-47397.08,"o":-47976.35}},{"ano":2025,"mes":6,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":489500.78,"o":662480.28},"sga_total":{"r":-165718.33,"o":-163762.83},"pessoal":{"r":-77170.82,"o":-68134.11},"comerciais":{"r":-26574.83,"o":-19429.15},"distribuicao":{"r":-11422.01,"o":-21460.0},"administrativas":{"r":-24096.55,"o":-24221.34},"tributarias":{"r":-2535.64,"o":-2767.67},"aluguel":{"r":-17500.38,"o":-18102.0}},{"ano":2025,"mes":6,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":3262457.47,"o":3282554.98},"sga_total":{"r":-615671.31,"o":-629018.41},"pessoal":{"r":-49099.48,"o":-68861.04},"comerciais":{"r":-107697.76,"o":-105696.91},"distribuicao":{"r":-12737.74,"o":-23366.92},"administrativas":{"r":-18164.86,"o":-17521.45},"tributarias":{"r":-2410.6,"o":-933.43},"aluguel":{"r":-20454.77,"o":-23593.47}},{"ano":2025,"mes":6,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":272718.72,"o":296200.46},"sga_total":{"r":-101200.08,"o":-112214.41},"pessoal":{"r":-50453.11,"o":-58924.65},"comerciais":{"r":-6703.77,"o":-8594.67},"distribuicao":{"r":-1816.96,"o":-2530.0},"administrativas":{"r":-14704.13,"o":-14410.61},"tributarias":{"r":-1881.58,"o":-1508.58},"aluguel":{"r":-21909.82,"o":-21945.07}},{"ano":2025,"mes":6,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":181379.9,"o":221470.03},"sga_total":{"r":-79111.65,"o":-88538.14},"pessoal":{"r":-29683.74,"o":-37940.55},"comerciais":{"r":-7519.26,"o":-9599.91},"distribuicao":{"r":-9383.19,"o":-14959.25},"administrativas":{"r":-18440.0,"o":-12370.54},"tributarias":{"r":-472.96,"o":-55.39},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2025,"mes":6,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":486155.96,"o":475469.64},"sga_total":{"r":-102870.62,"o":-92093.26},"pessoal":{"r":-57016.22,"o":-51472.26},"comerciais":{"r":-16576.35,"o":-11261.68},"distribuicao":{"r":-2075.13,"o":-1874.6},"administrativas":{"r":-8171.72,"o":-10187.03},"tributarias":{"r":-4850.75,"o":-2402.91},"aluguel":{"r":-7578.3,"o":-7957.17}},{"ano":2025,"mes":6,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":428720.46,"o":460448.7},"sga_total":{"r":-107326.27,"o":-115442.3},"pessoal":{"r":-59889.35,"o":-61747.31},"comerciais":{"r":-7552.57,"o":-10245.21},"distribuicao":{"r":-13207.33,"o":-14720.0},"administrativas":{"r":-8319.15,"o":-7831.22},"tributarias":{"r":-2436.53,"o":-1927.64},"aluguel":{"r":-12948.23,"o":-12948.25}},{"ano":2025,"mes":6,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":351583.18,"o":403771.64},"sga_total":{"r":-165102.13,"o":-140648.36},"pessoal":{"r":-92122.75,"o":-64380.19},"comerciais":{"r":-21760.03,"o":-23504.14},"distribuicao":{"r":-486.99,"o":-2014.8},"administrativas":{"r":-20345.02,"o":-17582.03},"tributarias":{"r":-3974.14,"o":-3796.14},"aluguel":{"r":-20978.22,"o":-20063.35}},{"ano":2025,"mes":6,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":386654.11,"o":429656.84},"sga_total":{"r":-135657.95,"o":-125162.3},"pessoal":{"r":-71658.84,"o":-65362.53},"comerciais":{"r":-15770.62,"o":-12619.09},"distribuicao":{"r":-1609.9,"o":-1519.0},"administrativas":{"r":-16797.8,"o":-15342.88},"tributarias":{"r":-2326.51,"o":-2356.89},"aluguel":{"r":-19749.08,"o":-19580.29}},{"ano":2025,"mes":6,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-19309.69,"o":0.0},"sga_total":{"r":-67832.91,"o":-66896.73},"pessoal":{"r":-42763.37,"o":-42836.34},"comerciais":{"r":-3318.13,"o":-1400.0},"distribuicao":{"r":-690.72,"o":-2715.0},"administrativas":{"r":-2991.6,"o":-1933.96},"tributarias":{"r":-3909.01,"o":-2211.79},"aluguel":{"r":-14160.08,"o":-15799.64}},{"ano":2025,"mes":6,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":196333.85,"o":208376.9},"sga_total":{"r":-62320.31,"o":-62401.95},"pessoal":{"r":-24148.12,"o":-29267.93},"comerciais":{"r":-5020.15,"o":-5229.22},"distribuicao":{"r":-13037.37,"o":-6365.0},"administrativas":{"r":-9803.97,"o":-11061.84},"tributarias":{"r":-821.88,"o":-949.21},"aluguel":{"r":-9488.82,"o":-9528.75}},{"ano":2025,"mes":6,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":350170.74,"o":329434.01},"sga_total":{"r":-102082.01,"o":-98253.92},"pessoal":{"r":-40598.41,"o":-35834.87},"comerciais":{"r":-12487.73,"o":-10254.06},"distribuicao":{"r":-1493.88,"o":-6469.65},"administrativas":{"r":-13198.59,"o":-13724.95},"tributarias":{"r":-4224.84,"o":-2467.37},"aluguel":{"r":-25480.13,"o":-24177.66}},{"ano":2025,"mes":6,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":156616.35,"o":240972.95},"sga_total":{"r":-114983.51,"o":-133891.39},"pessoal":{"r":-46054.53,"o":-56691.4},"comerciais":{"r":-11741.81,"o":-9338.15},"distribuicao":{"r":-4957.38,"o":-7861.65},"administrativas":{"r":-15752.87,"o":-23011.09},"tributarias":{"r":-176.92,"o":-689.1},"aluguel":{"r":-36300.0,"o":-36300.0}},{"ano":2025,"mes":6,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":232742.93,"o":201259.36},"sga_total":{"r":-56105.8,"o":-59973.05},"pessoal":{"r":-26066.18,"o":-27218.83},"comerciais":{"r":-4762.36,"o":-5195.15},"distribuicao":{"r":-1437.77,"o":-2031.2},"administrativas":{"r":-6346.94,"o":-9048.41},"tributarias":{"r":-1319.68,"o":-280.58},"aluguel":{"r":-16172.87,"o":-16198.88}},{"ano":2026,"mes":1,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1624116.55,"o":-1693377.65},"pessoal":{"r":-825743.06,"o":-907414.06},"comerciais":{"r":-182222.56,"o":-140992.01},"distribuicao":{"r":-9689.88,"o":-10028.56},"administrativas":{"r":-565449.59,"o":-594133.84},"tributarias":{"r":-2206.3,"o":-1931.65},"aluguel":{"r":-38805.16,"o":-38877.52}},{"ano":2026,"mes":1,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":103351.59,"o":100232.95},"sga_total":{"r":-28055.17,"o":-38475.19},"pessoal":{"r":-19158.46,"o":-23930.49},"comerciais":{"r":-2421.39,"o":-5097.67},"distribuicao":{"r":-1162.83,"o":-1163.42},"administrativas":{"r":-4773.61,"o":-7656.68},"tributarias":{"r":-538.88,"o":-626.93},"aluguel":{"r":0.0,"o":0.0}},{"ano":2026,"mes":1,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":380797.96,"o":370667.97},"sga_total":{"r":-132717.55,"o":-141993.2},"pessoal":{"r":-63411.04,"o":-64122.29},"comerciais":{"r":-10052.01,"o":-16658.71},"distribuicao":{"r":-11392.82,"o":-8097.69},"administrativas":{"r":-11864.95,"o":-17455.34},"tributarias":{"r":-2190.09,"o":-1873.27},"aluguel":{"r":-33210.88,"o":-33210.83}},{"ano":2026,"mes":1,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":244706.6,"o":265630.63},"sga_total":{"r":-66275.49,"o":-92150.65},"pessoal":{"r":-30801.92,"o":-34789.98},"comerciais":{"r":-3866.42,"o":-7028.32},"distribuicao":{"r":-5832.07,"o":-17761.03},"administrativas":{"r":-11700.09,"o":-17187.87},"tributarias":{"r":-2791.87,"o":-3026.32},"aluguel":{"r":-8232.47,"o":-8232.44}},{"ano":2026,"mes":1,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":1062736.6,"o":1049541.59},"sga_total":{"r":-253014.05,"o":-246425.89},"pessoal":{"r":-106393.2,"o":-98893.26},"comerciais":{"r":-52526.79,"o":-44423.96},"distribuicao":{"r":-1770.24,"o":-1838.15},"administrativas":{"r":-26268.09,"o":-33106.84},"tributarias":{"r":-8269.06,"o":-8050.63},"aluguel":{"r":-47430.19,"o":-48709.37}},{"ano":2026,"mes":1,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":443067.79,"o":477688.12},"sga_total":{"r":-235442.83,"o":-236631.44},"pessoal":{"r":-65167.8,"o":-71283.62},"comerciais":{"r":-53437.49,"o":-71197.69},"distribuicao":{"r":-23741.11,"o":-9268.66},"administrativas":{"r":-38962.97,"o":-27297.02},"tributarias":{"r":-3331.04,"o":-5748.58},"aluguel":{"r":-50437.73,"o":-50918.07}},{"ano":2026,"mes":1,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-593300.57,"o":-584262.1},"pessoal":{"r":-364112.59,"o":-347026.04},"comerciais":{"r":-13650.92,"o":-20000.0},"distribuicao":{"r":-86863.34,"o":-96092.67},"administrativas":{"r":-69606.76,"o":-63918.44},"tributarias":{"r":-9638.98,"o":-7796.97},"aluguel":{"r":-49427.98,"o":-49427.98}},{"ano":2026,"mes":1,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":406634.56,"o":409023.89},"sga_total":{"r":-91196.98,"o":-94684.97},"pessoal":{"r":-44808.28,"o":-46531.67},"comerciais":{"r":-10291.46,"o":-11126.36},"distribuicao":{"r":-1434.45,"o":-2273.66},"administrativas":{"r":-13659.71,"o":-15566.66},"tributarias":{"r":-4893.84,"o":-4668.57},"aluguel":{"r":-9454.1,"o":-9454.08}},{"ano":2026,"mes":1,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":251932.94,"o":246495.92},"sga_total":{"r":-68421.15,"o":-76820.38},"pessoal":{"r":-34174.45,"o":-38079.75},"comerciais":{"r":-5255.36,"o":-6002.24},"distribuicao":{"r":-1090.24,"o":-1728.86},"administrativas":{"r":-7623.47,"o":-9940.08},"tributarias":{"r":-1290.57,"o":-1402.21},"aluguel":{"r":-15178.13,"o":-15186.64}},{"ano":2026,"mes":1,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1724814.16,"o":1711559.31},"sga_total":{"r":-365491.2,"o":-397783.27},"pessoal":{"r":-175204.71,"o":-195379.08},"comerciais":{"r":-58514.04,"o":-55225.66},"distribuicao":{"r":-6429.46,"o":-2629.81},"administrativas":{"r":-43475.5,"o":-51836.33},"tributarias":{"r":-10434.56,"o":-11015.13},"aluguel":{"r":-50947.26,"o":-50947.19}},{"ano":2026,"mes":1,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":155713.87,"o":171600.93},"sga_total":{"r":-47448.44,"o":-50569.05},"pessoal":{"r":-22547.87,"o":-23162.41},"comerciais":{"r":-4203.97,"o":-4980.24},"distribuicao":{"r":-942.72,"o":-1235.15},"administrativas":{"r":-7040.5,"o":-8384.67},"tributarias":{"r":-1211.79,"o":-1304.99},"aluguel":{"r":-11501.59,"o":-11501.59}},{"ano":2026,"mes":1,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":382201.22,"o":415314.15},"sga_total":{"r":-176254.58,"o":-197894.04},"pessoal":{"r":-52587.1,"o":-61409.4},"comerciais":{"r":-26420.18,"o":-29857.66},"distribuicao":{"r":-11186.16,"o":-8787.73},"administrativas":{"r":-23708.19,"o":-35376.69},"tributarias":{"r":-3759.64,"o":-3647.48},"aluguel":{"r":-58122.88,"o":-58122.83}},{"ano":2026,"mes":1,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1451902.52,"o":1417859.89},"sga_total":{"r":-307262.61,"o":-297002.05},"pessoal":{"r":-123717.55,"o":-132443.76},"comerciais":{"r":-63333.57,"o":-47477.49},"distribuicao":{"r":-2517.11,"o":-2430.4},"administrativas":{"r":-43231.57,"o":-40613.19},"tributarias":{"r":-8800.94,"o":-8215.05},"aluguel":{"r":-46833.46,"o":-46833.4}},{"ano":2026,"mes":1,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":502649.57,"o":599281.57},"sga_total":{"r":-144872.98,"o":-154992.1},"pessoal":{"r":-57579.89,"o":-63514.15},"comerciais":{"r":-27194.82,"o":-28734.58},"distribuicao":{"r":-10765.43,"o":-11739.25},"administrativas":{"r":-25911.31,"o":-29204.85},"tributarias":{"r":-4163.34,"o":-4069.9},"aluguel":{"r":-11941.86,"o":-12979.97}},{"ano":2026,"mes":1,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":3924211.97,"o":3664122.29},"sga_total":{"r":-618993.38,"o":-806341.76},"pessoal":{"r":-60800.75,"o":-58273.48},"comerciais":{"r":-129875.0,"o":-144108.47},"distribuicao":{"r":-13114.75,"o":-13984.68},"administrativas":{"r":-18381.38,"o":-24469.01},"tributarias":{"r":-8069.24,"o":-3364.63},"aluguel":{"r":-56194.69,"o":-55367.14}},{"ano":2026,"mes":1,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":270425.21,"o":330952.99},"sga_total":{"r":-97080.52,"o":-104556.57},"pessoal":{"r":-39796.39,"o":-40917.05},"comerciais":{"r":-5658.23,"o":-8163.3},"distribuicao":{"r":-278.13,"o":-1806.91},"administrativas":{"r":-26535.73,"o":-25589.42},"tributarias":{"r":-1439.17,"o":-1690.53},"aluguel":{"r":-22887.4,"o":-23042.56}},{"ano":2026,"mes":1,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":215967.31,"o":192524.93},"sga_total":{"r":-59318.29,"o":-74549.66},"pessoal":{"r":-26809.68,"o":-31742.21},"comerciais":{"r":-5386.01,"o":-9337.98},"distribuicao":{"r":-8916.05,"o":-7195.36},"administrativas":{"r":-4080.23,"o":-12124.33},"tributarias":{"r":-513.82,"o":-537.28},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2026,"mes":1,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":555271.01,"o":532618.56},"sga_total":{"r":-90450.92,"o":-92196.44},"pessoal":{"r":-47018.71,"o":-46058.78},"comerciais":{"r":-12096.31,"o":-13121.6},"distribuicao":{"r":-2062.98,"o":-1881.76},"administrativas":{"r":-9693.71,"o":-12216.97},"tributarias":{"r":-2140.98,"o":-4622.51},"aluguel":{"r":-8046.17,"o":-8046.13}},{"ano":2026,"mes":1,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":433004.48,"o":456541.17},"sga_total":{"r":-102722.76,"o":-121923.0},"pessoal":{"r":-58265.1,"o":-62923.95},"comerciais":{"r":-7367.48,"o":-8732.59},"distribuicao":{"r":-7063.16,"o":-18436.25},"administrativas":{"r":-8464.46,"o":-10708.62},"tributarias":{"r":-4063.82,"o":-4337.4},"aluguel":{"r":-13625.23,"o":-13625.21}},{"ano":2026,"mes":1,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":333919.63,"o":286171.21},"sga_total":{"r":-125873.51,"o":-126971.07},"pessoal":{"r":-57794.97,"o":-55025.58},"comerciais":{"r":-17349.01,"o":-17225.7},"distribuicao":{"r":-492.48,"o":-493.32},"administrativas":{"r":-18708.55,"o":-20391.45},"tributarias":{"r":-3858.17,"o":-3917.61},"aluguel":{"r":-20978.22,"o":-20978.21}},{"ano":2026,"mes":1,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":385962.8,"o":374566.18},"sga_total":{"r":-97908.6,"o":-108385.25},"pessoal":{"r":-41510.68,"o":-43192.27},"comerciais":{"r":-11592.54,"o":-14427.1},"distribuicao":{"r":-2518.36,"o":-1776.79},"administrativas":{"r":-13540.14,"o":-18799.68},"tributarias":{"r":-2549.92,"o":-2786.75},"aluguel":{"r":-19893.65,"o":-20306.12}},{"ano":2026,"mes":1,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-81.27,"o":0.0},"sga_total":{"r":-56119.11,"o":-59119.48},"pessoal":{"r":-18670.58,"o":-18773.33},"comerciais":{"r":0.0,"o":-600.0},"distribuicao":{"r":-2046.88,"o":-3691.46},"administrativas":{"r":-17714.82,"o":-18569.0},"tributarias":{"r":-3526.75,"o":-3325.62},"aluguel":{"r":-14160.08,"o":-14160.07}},{"ano":2026,"mes":1,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":218772.56,"o":231689.11},"sga_total":{"r":-54448.07,"o":-72590.19},"pessoal":{"r":-27018.82,"o":-27023.24},"comerciais":{"r":-3251.17,"o":-5766.36},"distribuicao":{"r":-4179.37,"o":-15330.61},"administrativas":{"r":-9827.41,"o":-13737.88},"tributarias":{"r":-682.48,"o":-1243.28},"aluguel":{"r":-9488.82,"o":-9488.81}},{"ano":2026,"mes":1,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":378767.56,"o":358796.74},"sga_total":{"r":-116317.77,"o":-112767.8},"pessoal":{"r":-46425.41,"o":-43482.01},"comerciais":{"r":-14544.28,"o":-14130.81},"distribuicao":{"r":-1554.87,"o":-3963.95},"administrativas":{"r":-15247.22,"o":-14231.86},"tributarias":{"r":-4539.48,"o":-4338.52},"aluguel":{"r":-28349.6,"o":-28179.02}},{"ano":2026,"mes":1,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":191552.36,"o":260863.91},"sga_total":{"r":-112482.06,"o":-107959.67},"pessoal":{"r":-34796.26,"o":-37199.97},"comerciais":{"r":-18355.77,"o":-17131.37},"distribuicao":{"r":-1803.47,"o":-3796.68},"administrativas":{"r":-12925.95,"o":-9745.78},"tributarias":{"r":-3738.4,"o":-3785.86},"aluguel":{"r":-40837.5,"o":-36300.0}},{"ano":2026,"mes":1,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":257682.07,"o":265632.08},"sga_total":{"r":-51365.43,"o":-63415.91},"pessoal":{"r":-25764.27,"o":-27140.53},"comerciais":{"r":-4259.53,"o":-5629.11},"distribuicao":{"r":-1443.26,"o":-1717.4},"administrativas":{"r":-2374.56,"o":-11295.21},"tributarias":{"r":-1350.94,"o":-1460.83},"aluguel":{"r":-16172.87,"o":-16172.84}},{"ano":2026,"mes":2,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1605993.9,"o":-1721831.73},"pessoal":{"r":-840365.5,"o":-873949.81},"comerciais":{"r":-124162.44,"o":-174719.96},"distribuicao":{"r":-14792.89,"o":-10923.4},"administrativas":{"r":-581612.58,"o":-619459.87},"tributarias":{"r":-4630.81,"o":-1931.65},"aluguel":{"r":-40429.68,"o":-40847.04}},{"ano":2026,"mes":2,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":102235.09,"o":92775.67},"sga_total":{"r":-28826.91,"o":-36797.21},"pessoal":{"r":-20127.48,"o":-23613.69},"comerciais":{"r":-2853.65,"o":-4645.42},"distribuicao":{"r":-1235.9,"o":-1413.42},"administrativas":{"r":-4064.01,"o":-6521.54},"tributarias":{"r":-545.87,"o":-603.14},"aluguel":{"r":0.0,"o":0.0}},{"ano":2026,"mes":2,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":335433.42,"o":370455.9},"sga_total":{"r":-136353.4,"o":-136048.7},"pessoal":{"r":-55309.83,"o":-63530.02},"comerciais":{"r":-9005.65,"o":-13398.46},"distribuicao":{"r":-14774.16,"o":-6868.36},"administrativas":{"r":-21489.62,"o":-16589.77},"tributarias":{"r":-1934.7,"o":-1873.27},"aluguel":{"r":-33210.9,"o":-33210.83}},{"ano":2026,"mes":2,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":207465.8,"o":232249.41},"sga_total":{"r":-73241.14,"o":-82254.73},"pessoal":{"r":-36340.0,"o":-34086.64},"comerciais":{"r":-4211.37,"o":-5466.74},"distribuicao":{"r":-5421.23,"o":-14030.68},"administrativas":{"r":-13229.11,"o":-13871.03},"tributarias":{"r":-2711.38,"o":-2960.85},"aluguel":{"r":-8232.47,"o":-8232.44}},{"ano":2026,"mes":2,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":940564.67,"o":1076653.76},"sga_total":{"r":-235324.2,"o":-246282.52},"pessoal":{"r":-97439.2,"o":-97719.98},"comerciais":{"r":-46815.96,"o":-45680.24},"distribuicao":{"r":-1882.31,"o":-1838.15},"administrativas":{"r":-23702.49,"o":-32431.42},"tributarias":{"r":-7881.44,"o":-8228.68},"aluguel":{"r":-47430.19,"o":-48709.37}},{"ano":2026,"mes":2,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":393520.48,"o":453906.38},"sga_total":{"r":-224743.34,"o":-183548.22},"pessoal":{"r":-65854.1,"o":-70145.46},"comerciais":{"r":-38526.06,"o":-20019.78},"distribuicao":{"r":-17703.83,"o":-9355.27},"administrativas":{"r":-43954.71,"o":-26429.45},"tributarias":{"r":-7945.03,"o":-5748.58},"aluguel":{"r":-50437.74,"o":-50918.07}},{"ano":2026,"mes":2,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-582967.12,"o":-579925.63},"pessoal":{"r":-343550.58,"o":-323972.34},"comerciais":{"r":-11054.54,"o":-20000.0},"distribuicao":{"r":-76385.02,"o":-85999.29},"administrativas":{"r":-93203.87,"o":-92729.04},"tributarias":{"r":-9345.13,"o":-7796.97},"aluguel":{"r":-49427.98,"o":-49427.98}},{"ano":2026,"mes":2,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":370803.84,"o":356548.39},"sga_total":{"r":-90762.95,"o":-90645.36},"pessoal":{"r":-46704.54,"o":-45778.3},"comerciais":{"r":-9087.07,"o":-10113.27},"distribuicao":{"r":-1505.43,"o":-1497.04},"administrativas":{"r":-13215.79,"o":-14888.83},"tributarias":{"r":-4400.76,"o":-4499.55},"aluguel":{"r":-9454.1,"o":-9454.08}},{"ano":2026,"mes":2,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":226106.21,"o":234704.49},"sga_total":{"r":-67820.6,"o":-74411.33},"pessoal":{"r":-35244.59,"o":-37470.02},"comerciais":{"r":-4916.66,"o":-5678.07},"distribuicao":{"r":-1163.31,"o":-1092.36},"administrativas":{"r":-8260.58,"o":-9347.73},"tributarias":{"r":-1261.6,"o":-1370.24},"aluguel":{"r":-15178.13,"o":-15186.64}},{"ano":2026,"mes":2,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1461976.32,"o":1588644.54},"sga_total":{"r":-355696.59,"o":-388678.21},"pessoal":{"r":-172402.46,"o":-191008.64},"comerciais":{"r":-59689.6,"o":-51171.75},"distribuicao":{"r":-3344.87,"o":-5265.85},"administrativas":{"r":-40561.62,"o":-51121.13},"tributarias":{"r":-10030.26,"o":-10621.89},"aluguel":{"r":-50947.26,"o":-50947.19}},{"ano":2026,"mes":2,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":150854.93,"o":154625.21},"sga_total":{"r":-44889.3,"o":-50630.22},"pessoal":{"r":-19208.07,"o":-24285.61},"comerciais":{"r":-3910.69,"o":-4561.52},"distribuicao":{"r":-1269.89,"o":-985.15},"administrativas":{"r":-7792.47,"o":-8053.9},"tributarias":{"r":-1206.59,"o":-1242.46},"aluguel":{"r":-11501.59,"o":-11501.59}},{"ano":2026,"mes":2,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":368413.81,"o":446828.34},"sga_total":{"r":-175768.88,"o":-187964.0},"pessoal":{"r":-53855.56,"o":-58674.37},"comerciais":{"r":-22622.17,"o":-23935.3},"distribuicao":{"r":-7498.09,"o":-9517.5},"administrativas":{"r":-29334.1,"o":-33356.55},"tributarias":{"r":-3764.04,"o":-3647.48},"aluguel":{"r":-58122.88,"o":-58122.83}},{"ano":2026,"mes":2,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1312993.17,"o":1315269.74},"sga_total":{"r":-305992.4,"o":-296623.59},"pessoal":{"r":-135655.52,"o":-130526.39},"comerciais":{"r":-55481.35,"o":-43910.63},"distribuicao":{"r":-2590.18,"o":-2430.4},"administrativas":{"r":-39722.55,"o":-45687.16},"tributarias":{"r":-8513.28,"o":-7940.56},"aluguel":{"r":-46833.46,"o":-46833.4}},{"ano":2026,"mes":2,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":429906.74,"o":550845.69},"sga_total":{"r":-138080.83,"o":-137894.04},"pessoal":{"r":-56434.61,"o":-60059.14},"comerciais":{"r":-20063.7,"o":-21311.02},"distribuicao":{"r":-15470.59,"o":-11077.08},"administrativas":{"r":-21470.84,"o":-24166.68},"tributarias":{"r":-3657.75,"o":-3941.15},"aluguel":{"r":-12975.22,"o":-12979.97}},{"ano":2026,"mes":2,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":3010977.35,"o":3747750.5},"sga_total":{"r":-652906.95,"o":-819899.24},"pessoal":{"r":-75921.58,"o":-60283.13},"comerciais":{"r":-96293.48,"o":-153132.83},"distribuicao":{"r":-10213.46,"o":-12398.71},"administrativas":{"r":-26333.8,"o":-24477.92},"tributarias":{"r":-2824.15,"o":-3400.37},"aluguel":{"r":-55857.52,"o":-56211.22}},{"ano":2026,"mes":2,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":214855.12,"o":292451.57},"sga_total":{"r":-102399.05,"o":-102181.15},"pessoal":{"r":-42793.18,"o":-40144.13},"comerciais":{"r":-5363.35,"o":-7300.92},"distribuicao":{"r":-2515.28,"o":-2185.94},"administrativas":{"r":-26785.04,"o":-24925.15},"tributarias":{"r":-1326.83,"o":-1578.49},"aluguel":{"r":-22887.4,"o":-23042.56}},{"ano":2026,"mes":2,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":189845.49,"o":219343.74},"sga_total":{"r":-74696.76,"o":-71364.49},"pessoal":{"r":-27441.89,"o":-31267.01},"comerciais":{"r":-5552.46,"o":-9030.06},"distribuicao":{"r":-11994.05,"o":-5150.42},"administrativas":{"r":-15564.72,"o":-11767.23},"tributarias":{"r":-531.14,"o":-537.28},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2026,"mes":2,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":509289.76,"o":505790.24},"sga_total":{"r":-91818.16,"o":-90210.28},"pessoal":{"r":-49255.12,"o":-45488.44},"comerciais":{"r":-10795.97,"o":-12272.61},"distribuicao":{"r":-1952.7,"o":-2576.01},"administrativas":{"r":-10542.97,"o":-10922.72},"tributarias":{"r":-1914.9,"o":-4554.89},"aluguel":{"r":-8046.17,"o":-8046.13}},{"ano":2026,"mes":2,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":384378.89,"o":409183.05},"sga_total":{"r":-107727.49,"o":-111694.94},"pessoal":{"r":-64682.75,"o":-62556.28},"comerciais":{"r":-7137.48,"o":-8181.8},"distribuicao":{"r":-7115.86,"o":-10472.77},"administrativas":{"r":-9498.87,"o":-9836.03},"tributarias":{"r":-4178.34,"o":-4191.55},"aluguel":{"r":-13625.23,"o":-13625.21}},{"ano":2026,"mes":2,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":369423.29,"o":233871.58},"sga_total":{"r":-109556.93,"o":-128811.32},"pessoal":{"r":-44305.57,"o":-58532.48},"comerciais":{"r":-15288.81,"o":-15703.95},"distribuicao":{"r":-565.55,"o":-512.14},"administrativas":{"r":-18087.98,"o":-20322.45},"tributarias":{"r":-3617.35,"o":-3678.72},"aluguel":{"r":-20978.22,"o":-20978.21}},{"ano":2026,"mes":2,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":353782.43,"o":360156.49},"sga_total":{"r":-94522.37,"o":-107313.07},"pessoal":{"r":-42482.38,"o":-42362.12},"comerciais":{"r":-12415.3,"o":-13554.79},"distribuicao":{"r":-1688.47,"o":-1670.29},"administrativas":{"r":-11061.9,"o":-19879.01},"tributarias":{"r":-2566.48,"o":-2717.21},"aluguel":{"r":-19893.55,"o":-20306.12}},{"ano":2026,"mes":2,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-113.67,"o":0.0},"sga_total":{"r":-58728.97,"o":-57519.45},"pessoal":{"r":-22514.08,"o":-18586.13},"comerciais":{"r":-170.29,"o":-600.0},"distribuicao":{"r":-2283.56,"o":-2991.46},"administrativas":{"r":-15926.08,"o":-17998.81},"tributarias":{"r":-3674.88,"o":-3182.98},"aluguel":{"r":-14160.08,"o":-14160.07}},{"ano":2026,"mes":2,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":216851.94,"o":202877.49},"sga_total":{"r":-61490.92,"o":-66630.3},"pessoal":{"r":-26044.96,"o":-26699.24},"comerciais":{"r":-4935.89,"o":-5280.77},"distribuicao":{"r":-10175.82,"o":-12155.18},"administrativas":{"r":-10168.1,"o":-11833.64},"tributarias":{"r":-677.33,"o":-1172.67},"aluguel":{"r":-9488.82,"o":-9488.81}},{"ano":2026,"mes":2,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":366670.04,"o":333095.01},"sga_total":{"r":-116812.5,"o":-107015.05},"pessoal":{"r":-44330.67,"o":-42544.31},"comerciais":{"r":-13901.28,"o":-12838.12},"distribuicao":{"r":-3148.37,"o":-1525.2},"administrativas":{"r":-17650.68,"o":-13562.88},"tributarias":{"r":-4475.71,"o":-4242.05},"aluguel":{"r":-28403.76,"o":-28179.02}},{"ano":2026,"mes":2,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":170972.93,"o":212934.8},"sga_total":{"r":-114885.02,"o":-104110.81},"pessoal":{"r":-32749.2,"o":-36645.57},"comerciais":{"r":-14755.96,"o":-15005.4},"distribuicao":{"r":-4161.89,"o":-3187.24},"administrativas":{"r":-18764.17,"o":-9186.73},"tributarias":{"r":-3616.3,"o":-3785.86},"aluguel":{"r":-40837.5,"o":-36300.0}},{"ano":2026,"mes":2,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":262283.39,"o":231438.51},"sga_total":{"r":-62864.53,"o":-61895.92},"pessoal":{"r":-27514.93,"o":-26744.53},"comerciais":{"r":-6853.0,"o":-5049.56},"distribuicao":{"r":-1516.33,"o":-1498.8},"administrativas":{"r":-8821.12,"o":-10220.67},"tributarias":{"r":-1296.61,"o":-1373.38},"aluguel":{"r":-16862.54,"o":-17008.99}},{"ano":2026,"mes":3,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1579304.23,"o":-1730451.86},"pessoal":{"r":-804842.13,"o":-892750.49},"comerciais":{"r":-155553.27,"o":-165907.38},"distribuicao":{"r":-19589.64,"o":-9523.4},"administrativas":{"r":-557199.11,"o":-619491.9},"tributarias":{"r":-1690.4,"o":-1931.65},"aluguel":{"r":-40429.68,"o":-40847.04}},{"ano":2026,"mes":3,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":121696.58,"o":95018.62},"sga_total":{"r":-34125.24,"o":-42054.68},"pessoal":{"r":-19195.04,"o":-23824.89},"comerciais":{"r":-2966.56,"o":-5140.12},"distribuicao":{"r":-1235.9,"o":-1163.42},"administrativas":{"r":-5538.13,"o":-6549.59},"tributarias":{"r":-652.11,"o":-604.57},"aluguel":{"r":-4537.5,"o":-4772.09}},{"ano":2026,"mes":3,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":377226.3,"o":399693.07},"sga_total":{"r":-146415.87,"o":-142718.85},"pessoal":{"r":-53935.78,"o":-63951.66},"comerciais":{"r":-18106.21,"o":-17399.93},"distribuicao":{"r":-20865.05,"o":-7266.29},"administrativas":{"r":-15844.03,"o":-16699.38},"tributarias":{"r":-2762.4,"o":-1873.27},"aluguel":{"r":-34662.93,"o":-34927.83}},{"ano":2026,"mes":3,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":233282.1,"o":241984.11},"sga_total":{"r":-69993.66,"o":-85801.62},"pessoal":{"r":-31467.36,"o":-34433.52},"comerciais":{"r":-5178.26,"o":-6671.52},"distribuicao":{"r":-7937.65,"o":-16135.11},"administrativas":{"r":-11497.62,"o":-13593.5},"tributarias":{"r":-2751.38,"o":-2978.03},"aluguel":{"r":-8232.47,"o":-8232.44}},{"ano":2026,"mes":3,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":1097896.99,"o":1078060.11},"sga_total":{"r":-229719.39,"o":-250561.65},"pessoal":{"r":-90297.65,"o":-98614.6},"comerciais":{"r":-45493.62,"o":-46061.6},"distribuicao":{"r":-2442.26,"o":-4893.15},"administrativas":{"r":-24146.36,"o":-32452.89},"tributarias":{"r":-8678.94,"o":-8099.84},"aluguel":{"r":-47430.19,"o":-48709.37}},{"ano":2026,"mes":3,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":414328.47,"o":504302.09},"sga_total":{"r":-195698.93,"o":-186478.43},"pessoal":{"r":-61151.11,"o":-71005.03},"comerciais":{"r":-24465.15,"o":-21863.72},"distribuicao":{"r":-16402.34,"o":-9465.22},"administrativas":{"r":-33160.53,"o":-26524.82},"tributarias":{"r":-7860.07,"o":-5748.58},"aluguel":{"r":-52599.37,"o":-50918.07}},{"ano":2026,"mes":3,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-612615.23,"o":-587263.67},"pessoal":{"r":-334187.08,"o":-315345.95},"comerciais":{"r":-19898.73,"o":-25000.0},"distribuicao":{"r":-88699.5,"o":-88403.73},"administrativas":{"r":-110802.55,"o":-101289.04},"tributarias":{"r":-9585.28,"o":-7796.97},"aluguel":{"r":-49427.98,"o":-49427.98}},{"ano":2026,"mes":3,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":379529.47,"o":366804.8},"sga_total":{"r":-93994.08,"o":-95344.61},"pessoal":{"r":-51690.94,"o":-48776.4},"comerciais":{"r":-9433.41,"o":-10532.98},"distribuicao":{"r":-1505.43,"o":-1497.04},"administrativas":{"r":-11498.41,"o":-16011.98},"tributarias":{"r":-4725.19,"o":-4530.87},"aluguel":{"r":-9454.1,"o":-9454.08}},{"ano":2026,"mes":3,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":251291.69,"o":234544.58},"sga_total":{"r":-65356.19,"o":-75282.35},"pessoal":{"r":-32035.14,"o":-37785.0},"comerciais":{"r":-5313.58,"o":-5850.95},"distribuicao":{"r":-1163.31,"o":-1092.36},"administrativas":{"r":-8096.22,"o":-9347.54},"tributarias":{"r":-1347.89,"o":-1366.08},"aluguel":{"r":-15513.53,"o":-15577.06}},{"ano":2026,"mes":3,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1722072.52,"o":1755525.8},"sga_total":{"r":-364684.36,"o":-399886.76},"pessoal":{"r":-166093.23,"o":-194880.07},"comerciais":{"r":-66669.65,"o":-57513.4},"distribuicao":{"r":-2669.28,"o":-2629.81},"administrativas":{"r":-46028.82,"o":-51240.79},"tributarias":{"r":-11153.03,"o":-11135.54},"aluguel":{"r":-50947.26,"o":-50947.19}},{"ano":2026,"mes":3,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":180807.77,"o":154865.28},"sga_total":{"r":-48254.23,"o":-49949.34},"pessoal":{"r":-22872.21,"o":-23056.81},"comerciais":{"r":-4439.46,"o":-4741.13},"distribuicao":{"r":-1015.79,"o":-985.15},"administrativas":{"r":-6633.35,"o":-7834.44},"tributarias":{"r":-1281.0,"o":-1235.6},"aluguel":{"r":-12012.42,"o":-12096.22}},{"ano":2026,"mes":3,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":407191.32,"o":486825.44},"sga_total":{"r":-176501.38,"o":-209364.99},"pessoal":{"r":-49829.13,"o":-59106.23},"comerciais":{"r":-25213.4,"o":-28476.14},"distribuicao":{"r":-15217.38,"o":-10947.44},"administrativas":{"r":-23746.29,"o":-33399.93},"tributarias":{"r":-3723.36,"o":-3647.48},"aluguel":{"r":-58122.88,"o":-73059.23}},{"ano":2026,"mes":3,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1483205.41,"o":1395513.41},"sga_total":{"r":-305949.76,"o":-305008.33},"pessoal":{"r":-136378.72,"o":-132198.95},"comerciais":{"r":-59186.02,"o":-48509.79},"distribuicao":{"r":-2590.18,"o":-3096.65},"administrativas":{"r":-35875.41,"o":-46564.31},"tributarias":{"r":-8990.0,"o":-8086.12},"aluguel":{"r":-46833.46,"o":-46833.4}},{"ano":2026,"mes":3,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":502415.76,"o":558196.18},"sga_total":{"r":-142748.77,"o":-140823.05},"pessoal":{"r":-64791.47,"o":-60665.67},"comerciais":{"r":-20186.87,"o":-22507.5},"distribuicao":{"r":-16751.37,"o":-10811.92},"administrativas":{"r":-21508.16,"o":-25430.5},"tributarias":{"r":-3976.88,"o":-3962.49},"aluguel":{"r":-11941.86,"o":-12979.97}},{"ano":2026,"mes":3,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":3213255.76,"o":3810067.99},"sga_total":{"r":-627327.79,"o":-837182.95},"pessoal":{"r":-58686.32,"o":-58273.48},"comerciais":{"r":-100312.68,"o":-155049.59},"distribuicao":{"r":-15409.26,"o":-13023.99},"administrativas":{"r":-29415.38,"o":-24762.35},"tributarias":{"r":-2741.91,"o":-3403.58},"aluguel":{"r":-54318.25,"o":-56947.08}},{"ano":2026,"mes":3,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":249703.26,"o":318427.89},"sga_total":{"r":-96161.86,"o":-103477.86},"pessoal":{"r":-39142.36,"o":-40671.43},"comerciais":{"r":-5296.94,"o":-7994.38},"distribuicao":{"r":-1880.03,"o":-1885.94},"administrativas":{"r":-24811.65,"o":-24950.15},"tributarias":{"r":-1399.52,"o":-1660.91},"aluguel":{"r":-22887.4,"o":-23042.56}},{"ano":2026,"mes":3,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":231082.39,"o":246553.34},"sga_total":{"r":-81816.51,"o":-72906.77},"pessoal":{"r":-37372.74,"o":-31583.81},"comerciais":{"r":-7791.6,"o":-9589.17},"distribuicao":{"r":-10289.2,"o":-5735.93},"administrativas":{"r":-11891.95,"o":-11848.08},"tributarias":{"r":-858.52,"o":-537.28},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2026,"mes":3,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":622343.54,"o":518842.47},"sga_total":{"r":-96256.46,"o":-91163.97},"pessoal":{"r":-48599.13,"o":-45998.43},"comerciais":{"r":-13208.48,"o":-12969.07},"distribuicao":{"r":-2050.72,"o":-1957.87},"administrativas":{"r":-12606.9,"o":-11096.62},"tributarias":{"r":-2387.23,"o":-4606.83},"aluguel":{"r":-8046.17,"o":-8046.13}},{"ano":2026,"mes":3,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":422359.24,"o":405048.05},"sga_total":{"r":-104230.76,"o":-116101.69},"pessoal":{"r":-55409.78,"o":-62718.32},"comerciais":{"r":-7225.94,"o":-8259.84},"distribuicao":{"r":-11434.55,"o":-14695.29},"administrativas":{"r":-8748.74,"o":-9833.42},"tributarias":{"r":-4547.77,"o":-4166.92},"aluguel":{"r":-13625.23,"o":-13625.21}},{"ano":2026,"mes":3,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":283153.36,"o":275939.37},"sga_total":{"r":-122902.02,"o":-127026.12},"pessoal":{"r":-59645.25,"o":-54940.18},"comerciais":{"r":-14518.38,"o":-16079.04},"distribuicao":{"r":-492.48,"o":-1129.36},"administrativas":{"r":-16953.53,"o":-19694.18},"tributarias":{"r":-4221.67,"o":-3837.56},"aluguel":{"r":-21909.93,"o":-22062.79}},{"ano":2026,"mes":3,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":428735.72,"o":382103.84},"sga_total":{"r":-92691.42,"o":-112069.9},"pessoal":{"r":-39262.54,"o":-45462.3},"comerciais":{"r":-11943.51,"o":-14785.57},"distribuicao":{"r":-1549.39,"o":-1670.29},"administrativas":{"r":-12083.93,"o":-19795.11},"tributarias":{"r":-3089.9,"o":-2811.16},"aluguel":{"r":-19893.72,"o":-20306.12}},{"ano":2026,"mes":3,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-759.35,"o":-0.01},"sga_total":{"r":-65165.36,"o":-59084.7},"pessoal":{"r":-17741.76,"o":-18710.93},"comerciais":{"r":-1289.53,"o":-600.0},"distribuicao":{"r":-10700.44,"o":-2991.46},"administrativas":{"r":-16707.22,"o":-18569.0},"tributarias":{"r":-3937.44,"o":-3321.17},"aluguel":{"r":-14788.97,"o":-14892.14}},{"ano":2026,"mes":3,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":209253.94,"o":218919.64},"sga_total":{"r":-56823.16,"o":-69230.25},"pessoal":{"r":-25959.01,"o":-26915.24},"comerciais":{"r":-3779.22,"o":-5637.75},"distribuicao":{"r":-6864.72,"o":-13491.04},"administrativas":{"r":-9625.14,"o":-11996.73},"tributarias":{"r":-684.81,"o":-1210.1},"aluguel":{"r":-9910.26,"o":-9979.38}},{"ano":2026,"mes":3,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":417540.61,"o":380729.17},"sga_total":{"r":-119184.78,"o":-110539.18},"pessoal":{"r":-46200.05,"o":-43406.42},"comerciais":{"r":-14268.56,"o":-14677.84},"distribuicao":{"r":-4073.11,"o":-1525.2},"administrativas":{"r":-16390.29,"o":-13633.08},"tributarias":{"r":-4657.57,"o":-4404.48},"aluguel":{"r":-28443.14,"o":-28179.02}},{"ano":2026,"mes":3,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":215544.78,"o":240017.94},"sga_total":{"r":-109475.03,"o":-113967.14},"pessoal":{"r":-27546.02,"o":-37015.17},"comerciais":{"r":-16927.78,"o":-17011.9},"distribuicao":{"r":-6711.71,"o":-3987.71},"administrativas":{"r":-13894.6,"o":-9217.69},"tributarias":{"r":-3557.42,"o":-3785.86},"aluguel":{"r":-40837.5,"o":-42948.8}},{"ano":2026,"mes":3,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":291307.99,"o":235896.98},"sga_total":{"r":-65010.12,"o":-62333.16},"pessoal":{"r":-28191.49,"o":-27008.53},"comerciais":{"r":-9155.82,"o":-5252.17},"distribuicao":{"r":-1516.33,"o":-1498.8},"administrativas":{"r":-7936.66,"o":-10181.83},"tributarias":{"r":-1347.28,"o":-1382.84},"aluguel":{"r":-16862.54,"o":-17008.99}},{"ano":2026,"mes":4,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1623096.11,"o":-1763574.02},"pessoal":{"r":-810228.66,"o":-892248.37},"comerciais":{"r":-183047.54,"o":-204541.64},"distribuicao":{"r":-16864.41,"o":-10723.4},"administrativas":{"r":-569980.71,"o":-613281.91},"tributarias":{"r":-2545.11,"o":-1931.65},"aluguel":{"r":-40429.68,"o":-40847.04}},{"ano":2026,"mes":4,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":118655.02,"o":96144.58},"sga_total":{"r":-34600.58,"o":-43436.27},"pessoal":{"r":-16528.05,"o":-23824.89},"comerciais":{"r":-3146.56,"o":-5062.08},"distribuicao":{"r":-1249.39,"o":-1163.42},"administrativas":{"r":-8479.57,"o":-8003.6},"tributarias":{"r":-659.51,"o":-610.2},"aluguel":{"r":-4537.5,"o":-4772.09}},{"ano":2026,"mes":4,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":356112.75,"o":396832.75},"sga_total":{"r":-140467.85,"o":-141769.17},"pessoal":{"r":-59111.66,"o":-63949.69},"comerciais":{"r":-9439.04,"o":-14520.45},"distribuicao":{"r":-20759.77,"o":-8380.15},"administrativas":{"r":-14028.13,"o":-17531.02},"tributarias":{"r":-2119.7,"o":-1873.27},"aluguel":{"r":-35009.55,"o":-34927.83}},{"ano":2026,"mes":4,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":252134.88,"o":263925.35},"sga_total":{"r":-78321.38,"o":-85314.03},"pessoal":{"r":-42400.86,"o":-34647.36},"comerciais":{"r":-5318.0,"o":-6060.37},"distribuicao":{"r":-5821.05,"o":-14963.27},"administrativas":{"r":-10928.42,"o":-13862.18},"tributarias":{"r":-2813.6,"o":-3024.57},"aluguel":{"r":-8232.47,"o":-8658.07}},{"ano":2026,"mes":4,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":1000351.58,"o":1049958.74},"sga_total":{"r":-238427.55,"o":-246452.28},"pessoal":{"r":-100871.66,"o":-98433.69},"comerciais":{"r":-40132.51,"o":-44742.34},"distribuicao":{"r":-1843.3,"o":-1838.15},"administrativas":{"r":-27190.92,"o":-33115.05},"tributarias":{"r":-8097.34,"o":-8195.87},"aluguel":{"r":-47430.18,"o":-48709.37}},{"ano":2026,"mes":4,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":346008.51,"o":447396.88},"sga_total":{"r":-201688.98,"o":-184958.59},"pessoal":{"r":-61232.56,"o":-70935.79},"comerciais":{"r":-29095.31,"o":-20548.58},"distribuicao":{"r":-15618.05,"o":-8546.02},"administrativas":{"r":-37507.33,"o":-27340.51},"tributarias":{"r":-7798.02,"o":-5748.58},"aluguel":{"r":-50437.71,"o":-50918.07}},{"ano":2026,"mes":4,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-576389.37,"o":-570838.13},"pessoal":{"r":-303641.98,"o":-315345.95},"comerciais":{"r":-12346.36,"o":-20000.0},"distribuicao":{"r":-96827.96,"o":-82173.04},"administrativas":{"r":-96595.91,"o":-96094.19},"tributarias":{"r":-17549.18,"o":-7796.97},"aluguel":{"r":-49427.98,"o":-49427.98}},{"ano":2026,"mes":4,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":340482.93,"o":354669.74},"sga_total":{"r":-91876.98,"o":-92468.55},"pessoal":{"r":-48203.79,"o":-46042.1},"comerciais":{"r":-8139.04,"o":-10291.23},"distribuicao":{"r":-1505.43,"o":-2273.66},"administrativas":{"r":-14160.95,"o":-15518.17},"tributarias":{"r":-4425.26,"o":-4498.27},"aluguel":{"r":-9454.1,"o":-9454.08}},{"ano":2026,"mes":4,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":246570.0,"o":226527.43},"sga_total":{"r":-66339.34,"o":-76087.92},"pessoal":{"r":-31362.59,"o":-37693.53},"comerciais":{"r":-4939.56,"o":-5710.44},"distribuicao":{"r":-1163.31,"o":-1728.86},"administrativas":{"r":-8206.29,"o":-9916.52},"tributarias":{"r":-1256.53,"o":-1343.88},"aluguel":{"r":-15513.53,"o":-15577.06}},{"ano":2026,"mes":4,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1572424.88,"o":1540176.93},"sga_total":{"r":-383156.13,"o":-389137.77},"pessoal":{"r":-192770.75,"o":-192451.7},"comerciais":{"r":-55186.2,"o":-53105.86},"distribuicao":{"r":-7330.53,"o":-2629.81},"administrativas":{"r":-50376.86,"o":-51770.31},"tributarias":{"r":-10442.84,"o":-10561.9},"aluguel":{"r":-50947.24,"o":-50947.19}},{"ano":2026,"mes":4,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":164213.65,"o":140206.04},"sga_total":{"r":-50369.82,"o":-50492.22},"pessoal":{"r":-22912.16,"o":-23056.81},"comerciais":{"r":-4585.47,"o":-4542.9},"distribuicao":{"r":-1015.79,"o":-1235.15},"administrativas":{"r":-8609.15,"o":-8381.34},"tributarias":{"r":-1234.83,"o":-1179.8},"aluguel":{"r":-12012.42,"o":-12096.22}},{"ano":2026,"mes":4,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":415149.49,"o":493483.9},"sga_total":{"r":-189883.36,"o":-207819.65},"pessoal":{"r":-61331.09,"o":-59113.75},"comerciais":{"r":-22687.78,"o":-26804.31},"distribuicao":{"r":-20045.53,"o":-10233.9},"administrativas":{"r":-29084.86,"o":-34250.27},"tributarias":{"r":-4189.84,"o":-3647.48},"aluguel":{"r":-52544.26,"o":-73059.23}},{"ano":2026,"mes":4,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1294373.2,"o":1350468.27},"sga_total":{"r":-312917.98,"o":-287438.69},"pessoal":{"r":-142674.17,"o":-131799.7},"comerciais":{"r":-56406.96,"o":-46652.44},"distribuicao":{"r":-3867.95,"o":-2430.4},"administrativas":{"r":-37596.2,"o":-52234.84},"tributarias":{"r":-8121.76,"o":-8112.61},"aluguel":{"r":-46833.46,"o":-27125.68}},{"ano":2026,"mes":4,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":509917.37,"o":563584.29},"sga_total":{"r":-147458.34,"o":-142624.39},"pessoal":{"r":-72232.8,"o":-60672.43},"comerciais":{"r":-22445.96,"o":-22453.89},"distribuicao":{"r":-10545.97,"o":-11034.79},"administrativas":{"r":-22200.89,"o":-27032.53},"tributarias":{"r":-4026.64,"o":-3975.01},"aluguel":{"r":-11941.84,"o":-12979.97}},{"ano":2026,"mes":4,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":2997466.76,"o":3822008.19},"sga_total":{"r":-652127.9,"o":-843887.24},"pessoal":{"r":-100922.53,"o":-58273.48},"comerciais":{"r":-106028.12,"o":-163948.99},"distribuicao":{"r":-19347.53,"o":-12245.49},"administrativas":{"r":-25850.71,"o":-24762.74},"tributarias":{"r":-2444.19,"o":-3412.25},"aluguel":{"r":-56479.88,"o":-56947.08}},{"ano":2026,"mes":4,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":251819.71,"o":321511.64},"sga_total":{"r":-91036.62,"o":-104069.29},"pessoal":{"r":-35250.28,"o":-40670.26},"comerciais":{"r":-4929.59,"o":-7984.31},"distribuicao":{"r":-2469.91,"o":-1885.94},"administrativas":{"r":-24194.26,"o":-25579.71},"tributarias":{"r":-1305.18,"o":-1657.99},"aluguel":{"r":-22887.4,"o":-23042.56}},{"ano":2026,"mes":4,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":211721.44,"o":284042.22},"sga_total":{"r":-75414.02,"o":-73886.98},"pessoal":{"r":-32784.53,"o":-31583.81},"comerciais":{"r":-7977.54,"o":-9599.1},"distribuicao":{"r":-11595.91,"o":-6261.65},"administrativas":{"r":-8921.06,"o":-12292.64},"tributarias":{"r":-522.48,"o":-537.28},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2026,"mes":4,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":551751.46,"o":488133.38},"sga_total":{"r":-104392.11,"o":-91165.37},"pessoal":{"r":-57907.98,"o":-45867.05},"comerciais":{"r":-11549.39,"o":-12372.53},"distribuicao":{"r":-1989.64,"o":-1957.87},"administrativas":{"r":-12142.02,"o":-12073.88},"tributarias":{"r":-2123.04,"o":-4568.21},"aluguel":{"r":-8046.15,"o":-8046.13}},{"ano":2026,"mes":4,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":351811.38,"o":401541.2},"sga_total":{"r":-112819.34,"o":-114641.72},"pessoal":{"r":-67779.96,"o":-62703.09},"comerciais":{"r":-6349.08,"o":-8153.84},"distribuicao":{"r":-5472.54,"o":-13397.51},"administrativas":{"r":-10365.43,"o":-9831.06},"tributarias":{"r":-3918.89,"o":-4152.58},"aluguel":{"r":-13625.23,"o":-13625.21}},{"ano":2026,"mes":4,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":255205.61,"o":238270.71},"sga_total":{"r":-124330.76,"o":-127447.63},"pessoal":{"r":-56605.59,"o":-54752.23},"comerciais":{"r":-15141.51,"o":-17113.35},"distribuicao":{"r":-492.48,"o":-512.14},"administrativas":{"r":-22851.63,"o":-20327.47},"tributarias":{"r":-3619.38,"o":-3696.09},"aluguel":{"r":-21909.93,"o":-22062.79}},{"ano":2026,"mes":4,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":403305.25,"o":379950.65},"sga_total":{"r":-99146.92,"o":-109616.19},"pessoal":{"r":-44887.0,"o":-43036.7},"comerciais":{"r":-12931.4,"o":-14599.01},"distribuicao":{"r":-1827.54,"o":-1776.79},"administrativas":{"r":-12307.86,"o":-19767.98},"tributarias":{"r":-2629.0,"o":-2931.04},"aluguel":{"r":-19893.62,"o":-20306.12}},{"ano":2026,"mes":4,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-81.27,"o":0.0},"sga_total":{"r":-61570.64,"o":-59044.59},"pessoal":{"r":-18187.33,"o":-18710.93},"comerciais":{"r":-6785.16,"o":-600.0},"distribuicao":{"r":-2632.93,"o":-2991.46},"administrativas":{"r":-15657.01,"o":-18569.0},"tributarias":{"r":-3519.24,"o":-3281.06},"aluguel":{"r":-14788.97,"o":-14892.14}},{"ano":2026,"mes":4,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":220432.95,"o":231146.38},"sga_total":{"r":-59748.9,"o":-75732.29},"pessoal":{"r":-29106.08,"o":-27995.24},"comerciais":{"r":-6179.99,"o":-7510.69},"distribuicao":{"r":-3700.19,"o":-15355.85},"administrativas":{"r":-10025.05,"o":-13646.77},"tributarias":{"r":-827.33,"o":-1244.37},"aluguel":{"r":-9910.26,"o":-9979.38}},{"ano":2026,"mes":4,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":379665.79,"o":345738.04},"sga_total":{"r":-113662.44,"o":-111999.26},"pessoal":{"r":-39683.29,"o":-43134.55},"comerciais":{"r":-15315.98,"o":-13890.95},"distribuicao":{"r":-2340.69,"o":-3963.95},"administrativas":{"r":-17794.28,"o":-14212.53},"tributarias":{"r":-4542.66,"o":-4338.28},"aluguel":{"r":-28621.81,"o":-28179.02}},{"ano":2026,"mes":4,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":196552.64,"o":315001.61},"sga_total":{"r":-124152.2,"o":-116665.03},"pessoal":{"r":-33183.52,"o":-37015.17},"comerciais":{"r":-18070.36,"o":-18393.24},"distribuicao":{"r":-12823.7,"o":-4317.97},"administrativas":{"r":-15622.47,"o":-10203.98},"tributarias":{"r":-3614.65,"o":-3785.86},"aluguel":{"r":-40837.5,"o":-42948.8}},{"ano":2026,"mes":4,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":262539.26,"o":243595.63},"sga_total":{"r":-63752.8,"o":-65176.56},"pessoal":{"r":-28065.14,"o":-28208.53},"comerciais":{"r":-7984.46,"o":-5329.94},"distribuicao":{"r":-1516.33,"o":-1717.4},"administrativas":{"r":-7988.33,"o":-11508.83},"tributarias":{"r":-1336.0,"o":-1402.88},"aluguel":{"r":-16862.54,"o":-17008.99}},{"ano":2026,"mes":5,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1608150.91,"o":-1717342.33},"pessoal":{"r":-789988.9,"o":-874845.29},"comerciais":{"r":-170360.15,"o":-164937.24},"distribuicao":{"r":-16727.89,"o":-9523.4},"administrativas":{"r":-584549.07,"o":-625257.71},"tributarias":{"r":-6095.22,"o":-1931.65},"aluguel":{"r":-40429.68,"o":-40847.04}},{"ano":2026,"mes":5,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":117663.47,"o":143546.1},"sga_total":{"r":-34698.07,"o":-45811.14},"pessoal":{"r":-18387.51,"o":-25024.89},"comerciais":{"r":-2936.36,"o":-5912.07},"distribuicao":{"r":-1249.39,"o":-1431.71},"administrativas":{"r":-6962.03,"o":-7894.23},"tributarias":{"r":-625.28,"o":-776.15},"aluguel":{"r":-4537.5,"o":-4772.09}},{"ano":2026,"mes":5,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":377427.0,"o":440962.45},"sga_total":{"r":-136807.95,"o":-144691.07},"pessoal":{"r":-56569.85,"o":-63988.99},"comerciais":{"r":-12837.94,"o":-18481.31},"distribuicao":{"r":-14608.18,"o":-7939.78},"administrativas":{"r":-16185.37,"o":-16856.91},"tributarias":{"r":-1943.7,"o":-1873.27},"aluguel":{"r":-34662.91,"o":-34927.83}},{"ano":2026,"mes":5,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":230034.43,"o":267613.05},"sga_total":{"r":-72068.17,"o":-90821.12},"pessoal":{"r":-35147.16,"o":-34683.3},"comerciais":{"r":-4775.88,"o":-7116.72},"distribuicao":{"r":-8018.43,"o":-18693.62},"administrativas":{"r":-10461.19,"o":-14483.34},"tributarias":{"r":-3089.62,"o":-3030.59},"aluguel":{"r":-8232.47,"o":-8658.07}},{"ano":2026,"mes":5,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":982868.7,"o":1100233.4},"sga_total":{"r":-248884.45,"o":-249876.59},"pessoal":{"r":-91147.84,"o":-98779.73},"comerciais":{"r":-48967.71,"o":-47943.49},"distribuicao":{"r":-13023.7,"o":-1838.15},"administrativas":{"r":-30272.13,"o":-32469.08},"tributarias":{"r":-8715.84,"o":-8165.66},"aluguel":{"r":-47430.19,"o":-48709.37}},{"ano":2026,"mes":5,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":455190.7,"o":488990.82},"sga_total":{"r":-230689.6,"o":-186777.48},"pessoal":{"r":-64144.58,"o":-70985.07},"comerciais":{"r":-63242.58,"o":-21510.82},"distribuicao":{"r":-13237.68,"o":-9686.88},"administrativas":{"r":-31829.03,"o":-26975.65},"tributarias":{"r":-7798.02,"o":-5748.58},"aluguel":{"r":-50437.71,"o":-50918.07}},{"ano":2026,"mes":5,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-534174.54,"o":-582547.22},"pessoal":{"r":-296492.14,"o":-313701.95},"comerciais":{"r":-7579.57,"o":-20000.0},"distribuicao":{"r":-66535.85,"o":-96125.81},"administrativas":{"r":-102812.9,"o":-92939.09},"tributarias":{"r":-9278.37,"o":-7796.97},"aluguel":{"r":-51475.71,"o":-51983.4}},{"ano":2026,"mes":5,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":352059.01,"o":393715.38},"sga_total":{"r":-98566.47,"o":-94087.59},"pessoal":{"r":-46638.83,"o":-46201.51},"comerciais":{"r":-16843.83,"o":-12036.88},"distribuicao":{"r":-1505.43,"o":-1497.04},"administrativas":{"r":-13433.82,"o":-14921.98},"tributarias":{"r":-4579.51,"o":-4612.88},"aluguel":{"r":-9845.76,"o":-9942.86}},{"ano":2026,"mes":5,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":269215.49,"o":245830.1},"sga_total":{"r":-84053.37,"o":-75910.34},"pessoal":{"r":-47491.11,"o":-37913.75},"comerciais":{"r":-5608.14,"o":-6099.14},"distribuicao":{"r":-1503.63,"o":-1092.36},"administrativas":{"r":-8527.55,"o":-9360.86},"tributarias":{"r":-1425.64,"o":-1398.67},"aluguel":{"r":-15513.53,"o":-15577.06}},{"ano":2026,"mes":5,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1635982.31,"o":1753833.68},"sga_total":{"r":-364515.22,"o":-409357.75},"pessoal":{"r":-167456.7,"o":-194860.99},"comerciais":{"r":-64597.44,"o":-60377.31},"distribuicao":{"r":-2620.91,"o":-5265.85},"administrativas":{"r":-47204.02,"o":-52741.39},"tributarias":{"r":-10783.11,"o":-11021.48},"aluguel":{"r":-53057.9,"o":-53581.16}},{"ano":2026,"mes":5,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":173959.12,"o":157828.06},"sga_total":{"r":-44823.91,"o":-50099.59},"pessoal":{"r":-17694.65,"o":-23056.81},"comerciais":{"r":-5691.32,"o":-4923.6},"distribuicao":{"r":-1015.79,"o":-985.15},"administrativas":{"r":-7147.72,"o":-7792.52},"tributarias":{"r":-1262.01,"o":-1245.3},"aluguel":{"r":-12012.42,"o":-12096.22}},{"ano":2026,"mes":5,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":425260.25,"o":532582.4},"sga_total":{"r":-180066.43,"o":-210992.73},"pessoal":{"r":-49655.01,"o":-59118.46},"comerciais":{"r":-30705.84,"o":-30022.67},"distribuicao":{"r":-16164.71,"o":-10990.7},"administrativas":{"r":-27321.57,"o":-33414.78},"tributarias":{"r":-3675.04,"o":-3647.48},"aluguel":{"r":-52544.26,"o":-73059.23}},{"ano":2026,"mes":5,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1338043.08,"o":1385739.73},"sga_total":{"r":-294641.54,"o":-290471.88},"pessoal":{"r":-119251.85,"o":-132198.95},"comerciais":{"r":-64757.52,"o":-49589.5},"distribuicao":{"r":-2590.19,"o":-2430.4},"administrativas":{"r":-36532.13,"o":-49941.02},"tributarias":{"r":-8384.17,"o":-8064.83},"aluguel":{"r":-48077.25,"o":-28528.07}},{"ano":2026,"mes":5,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":508213.18,"o":564695.26},"sga_total":{"r":-139151.8,"o":-144561.91},"pessoal":{"r":-60865.83,"o":-60701.52},"comerciais":{"r":-20573.44,"o":-22749.93},"distribuicao":{"r":-14548.76,"o":-11103.25},"administrativas":{"r":-24088.94,"o":-27908.07},"tributarias":{"r":-4635.11,"o":-3979.66},"aluguel":{"r":-12436.57,"o":-13597.36}},{"ano":2026,"mes":5,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":3475973.77,"o":3839599.54},"sga_total":{"r":-624585.14,"o":-839440.59},"pessoal":{"r":-85886.7,"o":-57911.08},"comerciais":{"r":-119591.8,"o":-155479.04},"distribuicao":{"r":-13197.69,"o":-13988.82},"administrativas":{"r":-28665.48,"o":-24858.21},"tributarias":{"r":-2698.26,"o":-3408.43},"aluguel":{"r":-56603.57,"o":-57101.43}},{"ano":2026,"mes":5,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":267842.3,"o":317056.28},"sga_total":{"r":-103157.88,"o":-103661.71},"pessoal":{"r":-34627.12,"o":-40630.56},"comerciais":{"r":-15881.74,"o":-7986.19},"distribuicao":{"r":-4148.78,"o":-2200.32},"administrativas":{"r":-23811.99,"o":-24946.65},"tributarias":{"r":-1800.85,"o":-1641.38},"aluguel":{"r":-22887.4,"o":-23042.56}},{"ano":2026,"mes":5,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":213346.13,"o":272171.41},"sga_total":{"r":-75507.99,"o":-74349.39},"pessoal":{"r":-29579.72,"o":-31583.81},"comerciais":{"r":-5622.21,"o":-9793.54},"distribuicao":{"r":-11491.76,"o":-6706.59},"administrativas":{"r":-14679.32,"o":-12115.67},"tributarias":{"r":-522.48,"o":-537.28},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2026,"mes":5,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":599211.62,"o":505559.28},"sga_total":{"r":-100019.13,"o":-92006.41},"pessoal":{"r":-52307.81,"o":-45998.43},"comerciais":{"r":-12263.77,"o":-12620.75},"distribuicao":{"r":-1952.68,"o":-2576.01},"administrativas":{"r":-12670.45,"o":-11744.33},"tributarias":{"r":-2655.59,"o":-4531.74},"aluguel":{"r":-8046.15,"o":-8046.13}},{"ano":2026,"mes":5,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":404665.87,"o":452440.55},"sga_total":{"r":-114115.35,"o":-117500.3},"pessoal":{"r":-66670.43,"o":-62708.15},"comerciais":{"r":-4960.9,"o":-8728.1},"distribuicao":{"r":-10854.72,"o":-15120.67},"administrativas":{"r":-10194.22,"o":-9864.59},"tributarias":{"r":-3920.29,"o":-4322.97},"aluguel":{"r":-13625.23,"o":-13625.21}},{"ano":2026,"mes":5,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":344039.25,"o":315499.04},"sga_total":{"r":-124923.58,"o":-129798.96},"pessoal":{"r":-55135.41,"o":-54940.18},"comerciais":{"r":-18797.75,"o":-18267.7},"distribuicao":{"r":-1078.29,"o":-512.14},"administrativas":{"r":-19037.73,"o":-20747.17},"tributarias":{"r":-4163.02,"o":-3985.97},"aluguel":{"r":-21909.93,"o":-22062.79}},{"ano":2026,"mes":5,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":421097.44,"o":370316.93},"sga_total":{"r":-94471.8,"o":-109516.04},"pessoal":{"r":-39455.49,"o":-42922.14},"comerciais":{"r":-13282.22,"o":-15650.21},"distribuicao":{"r":-1688.47,"o":-1670.29},"administrativas":{"r":-12375.13,"o":-19184.24},"tributarias":{"r":-2907.2,"o":-2767.0},"aluguel":{"r":-19893.62,"o":-20306.12}},{"ano":2026,"mes":5,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-131.57,"o":-0.01},"sga_total":{"r":-59924.3,"o":-59808.4},"pessoal":{"r":-22781.66,"o":-18710.93},"comerciais":{"r":-781.24,"o":-600.0},"distribuicao":{"r":-679.73,"o":-3691.46},"administrativas":{"r":-16436.93,"o":-18569.0},"tributarias":{"r":-4455.77,"o":-3344.87},"aluguel":{"r":-14788.97,"o":-14892.14}},{"ano":2026,"mes":5,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":249216.53,"o":232636.16},"sga_total":{"r":-58054.0,"o":-71253.48},"pessoal":{"r":-25208.67,"o":-26915.24},"comerciais":{"r":-6422.67,"o":-5858.8},"distribuicao":{"r":-6451.32,"o":-13869.49},"administrativas":{"r":-9323.13,"o":-13384.45},"tributarias":{"r":-737.95,"o":-1246.12},"aluguel":{"r":-9910.26,"o":-9979.38}},{"ano":2026,"mes":5,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":393473.25,"o":368304.8},"sga_total":{"r":-109534.66,"o":-110049.4},"pessoal":{"r":-37050.13,"o":-43309.89},"comerciais":{"r":-14588.13,"o":-14515.53},"distribuicao":{"r":-1832.49,"o":-1525.2},"administrativas":{"r":-17493.46,"o":-13614.84},"tributarias":{"r":-4942.7,"o":-4345.59},"aluguel":{"r":-28946.4,"o":-28179.02}},{"ano":2026,"mes":5,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":206840.85,"o":340802.93},"sga_total":{"r":-116837.54,"o":-122705.52},"pessoal":{"r":-37188.3,"o":-38695.17},"comerciais":{"r":-21592.76,"o":-22548.32},"distribuicao":{"r":-4212.85,"o":-4627.39},"administrativas":{"r":-9391.48,"o":-10099.98},"tributarias":{"r":-3614.65,"o":-3785.86},"aluguel":{"r":-40837.5,"o":-42948.8}},{"ano":2026,"mes":5,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":254682.8,"o":252889.74},"sga_total":{"r":-61941.98,"o":-62669.03},"pessoal":{"r":-24658.75,"o":-27008.53},"comerciais":{"r":-7771.48,"o":-5528.21},"distribuicao":{"r":-1743.21,"o":-1498.8},"administrativas":{"r":-9640.45,"o":-10196.64},"tributarias":{"r":-1265.55,"o":-1427.87},"aluguel":{"r":-16862.54,"o":-17008.99}},{"ano":2026,"mes":6,"loja":"ADMINISTRATIVO","canal":"CORPORATIVO","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-1481502.0,"o":-1736712.23},"pessoal":{"r":-670286.64,"o":-881161.29},"comerciais":{"r":-179729.96,"o":-174023.51},"distribuicao":{"r":-18084.79,"o":-10723.4},"administrativas":{"r":-565219.02,"o":-628025.35},"tributarias":{"r":-7751.91,"o":-1931.65},"aluguel":{"r":-40429.68,"o":-40847.04}},{"ano":2026,"mes":6,"loja":"AFRICANOS","canal":"VAREJO","receita_liquida":{"r":126810.94,"o":156477.45},"sga_total":{"r":-50741.88,"o":-44086.52},"pessoal":{"r":-21431.27,"o":-23824.89},"comerciais":{"r":-4814.53,"o":-6013.08},"distribuicao":{"r":-1249.39,"o":-1181.71},"administrativas":{"r":-18088.65,"o":-7470.76},"tributarias":{"r":-620.54,"o":-824.0},"aluguel":{"r":-4537.5,"o":-4772.09}},{"ano":2026,"mes":6,"loja":"ARAGUAÍNA","canal":"VAREJO","receita_liquida":{"r":375830.08,"o":398048.0},"sga_total":{"r":-128817.22,"o":-140035.38},"pessoal":{"r":-50882.51,"o":-63950.02},"comerciais":{"r":-11299.71,"o":-14681.67},"distribuicao":{"r":-14953.55,"o":-7320.6},"administrativas":{"r":-14759.0,"o":-16693.55},"tributarias":{"r":-2259.54,"o":-1873.27},"aluguel":{"r":-34662.91,"o":-34927.83}},{"ano":2026,"mes":6,"loja":"BACABAL","canal":"VAREJO","receita_liquida":{"r":239436.5,"o":283065.26},"sga_total":{"r":-66999.88,"o":-89187.91},"pessoal":{"r":-28192.17,"o":-34833.9},"comerciais":{"r":-5298.2,"o":-7352.2},"distribuicao":{"r":-4966.46,"o":-16245.86},"administrativas":{"r":-14496.12,"o":-14637.7},"tributarias":{"r":-2742.17,"o":-3064.78},"aluguel":{"r":-8232.47,"o":-8658.07}},{"ano":2026,"mes":6,"loja":"CALHAU","canal":"VAREJO","receita_liquida":{"r":1074044.91,"o":1039769.39},"sga_total":{"r":-249042.5,"o":-254507.12},"pessoal":{"r":-96804.9,"o":-98351.36},"comerciais":{"r":-47980.73,"o":-50849.44},"distribuicao":{"r":-2653.52,"o":-4893.15},"administrativas":{"r":-32893.2,"o":-32408.41},"tributarias":{"r":-8114.65,"o":-7979.02},"aluguel":{"r":-47430.18,"o":-48709.37}},{"ano":2026,"mes":6,"loja":"CASTANHEIRAS","canal":"VAREJO","receita_liquida":{"r":428584.62,"o":496687.47},"sga_total":{"r":-204043.9,"o":-186865.84},"pessoal":{"r":-56522.48,"o":-70995.33},"comerciais":{"r":-41285.14,"o":-21841.52},"distribuicao":{"r":-19259.83,"o":-9452.63},"administrativas":{"r":-28491.41,"o":-26987.21},"tributarias":{"r":-8047.33,"o":-5748.58},"aluguel":{"r":-50437.71,"o":-50918.07}},{"ano":2026,"mes":6,"loja":"CD-LOGISTICA","canal":"CD-LOGISTICA","receita_liquida":{"r":0.0,"o":0.0},"sga_total":{"r":-571936.87,"o":-578511.54},"pessoal":{"r":-313035.87,"o":-315345.95},"comerciais":{"r":-21830.4,"o":-20000.0},"distribuicao":{"r":-71696.19,"o":-86415.21},"administrativas":{"r":-104302.7,"o":-96970.01},"tributarias":{"r":-9278.37,"o":-7796.97},"aluguel":{"r":-51793.34,"o":-51983.4}},{"ano":2026,"mes":6,"loja":"CENTRO","canal":"VAREJO","receita_liquida":{"r":372150.93,"o":407064.39},"sga_total":{"r":-85729.34,"o":-93688.47},"pessoal":{"r":-39987.17,"o":-46449.25},"comerciais":{"r":-9252.28,"o":-11148.75},"distribuicao":{"r":-2588.13,"o":-1510.59},"administrativas":{"r":-14432.04,"o":-14933.89},"tributarias":{"r":-4315.0,"o":-4663.43},"aluguel":{"r":-9845.76,"o":-9942.86}},{"ano":2026,"mes":6,"loja":"CIDADE OPERÁRIA","canal":"VAREJO","receita_liquida":{"r":254481.96,"o":277507.82},"sga_total":{"r":-68461.93,"o":-82407.85},"pessoal":{"r":-32398.25,"o":-40435.16},"comerciais":{"r":-6469.6,"o":-6610.68},"distribuicao":{"r":-1163.31,"o":-1127.68},"administrativas":{"r":-8463.32,"o":-9758.25},"tributarias":{"r":-1228.33,"o":-1489.71},"aluguel":{"r":-15513.53,"o":-17942.06}},{"ano":2026,"mes":6,"loja":"COHAMA","canal":"VAREJO","receita_liquida":{"r":1607502.22,"o":1696527.9},"sga_total":{"r":-361633.04,"o":-401509.18},"pessoal":{"r":-175825.06,"o":-194214.78},"comerciais":{"r":-57195.94,"o":-58611.01},"distribuicao":{"r":-3235.51,"o":-2629.81},"administrativas":{"r":-41069.62,"o":-51201.63},"tributarias":{"r":-9632.3,"o":-10790.79},"aluguel":{"r":-53057.9,"o":-53581.16}},{"ano":2026,"mes":6,"loja":"COHATRAC","canal":"VAREJO","receita_liquida":{"r":168673.18,"o":161392.69},"sga_total":{"r":-47678.2,"o":-50284.95},"pessoal":{"r":-21362.12,"o":-23056.81},"comerciais":{"r":-4601.91,"o":-5068.48},"distribuicao":{"r":-1022.12,"o":-992.07},"administrativas":{"r":-7454.99,"o":-7811.09},"tributarias":{"r":-1224.64,"o":-1260.29},"aluguel":{"r":-12012.42,"o":-12096.22}},{"ano":2026,"mes":6,"loja":"DOM SEVERINO","canal":"VAREJO","receita_liquida":{"r":413184.26,"o":478520.57},"sga_total":{"r":-192812.46,"o":-213081.52},"pessoal":{"r":-52543.84,"o":-62183.52},"comerciais":{"r":-33558.72,"o":-28878.57},"distribuicao":{"r":-13927.09,"o":-11210.94},"administrativas":{"r":-35780.92,"o":-33391.31},"tributarias":{"r":-4365.63,"o":-3647.48},"aluguel":{"r":-52544.26,"o":-73059.23}},{"ano":2026,"mes":6,"loja":"FORQUILHA","canal":"VAREJO","receita_liquida":{"r":1357925.9,"o":1424354.4},"sga_total":{"r":-300436.12,"o":-288525.24},"pessoal":{"r":-125841.59,"o":-131799.7},"comerciais":{"r":-61948.22,"o":-48390.42},"distribuicao":{"r":-2817.07,"o":-3096.65},"administrativas":{"r":-36526.0,"o":-49472.94},"tributarias":{"r":-7715.38,"o":-8154.45},"aluguel":{"r":-48077.25,"o":-28528.07}},{"ano":2026,"mes":6,"loja":"IMPERATRIZ","canal":"VAREJO","receita_liquida":{"r":506214.37,"o":506014.18},"sga_total":{"r":-145085.49,"o":-139297.2},"pessoal":{"r":-58990.8,"o":-60425.09},"comerciais":{"r":-20986.65,"o":-23149.9},"distribuicao":{"r":-19140.68,"o":-9815.33},"administrativas":{"r":-25254.05,"o":-24399.62},"tributarias":{"r":-5478.31,"o":-3828.18},"aluguel":{"r":-12436.57,"o":-13597.36}},{"ano":2026,"mes":6,"loja":"LYNKZ / DISTRIBUIÇÃO","canal":"ATACADO","receita_liquida":{"r":2601742.34,"o":3849666.65},"sga_total":{"r":-718020.36,"o":-837051.73},"pessoal":{"r":-87747.55,"o":-58273.48},"comerciais":{"r":-178370.63,"o":-155752.5},"distribuicao":{"r":-13022.64,"o":-12775.53},"administrativas":{"r":-28785.33,"o":-24834.31},"tributarias":{"r":-8523.47,"o":-3412.54},"aluguel":{"r":-56603.57,"o":-57101.43}},{"ano":2026,"mes":6,"loja":"MAIOBÃO","canal":"VAREJO","receita_liquida":{"r":267317.8,"o":309230.02},"sga_total":{"r":-106690.31,"o":-103254.42},"pessoal":{"r":-45024.2,"o":-40612.87},"comerciais":{"r":-16557.64,"o":-7958.49},"distribuicao":{"r":-1880.03,"o":-1900.32},"administrativas":{"r":-18853.55,"o":-24940.66},"tributarias":{"r":-1487.49,"o":-1632.58},"aluguel":{"r":-22887.4,"o":-23042.56}},{"ano":2026,"mes":6,"loja":"MARABÁ","canal":"VAREJO","receita_liquida":{"r":209484.99,"o":241467.96},"sga_total":{"r":-74716.81,"o":-72989.24},"pessoal":{"r":-31752.08,"o":-31583.81},"comerciais":{"r":-8345.34,"o":-9679.72},"distribuicao":{"r":-10424.99,"o":-5772.89},"administrativas":{"r":-10059.42,"o":-11803.04},"tributarias":{"r":-522.48,"o":-537.28},"aluguel":{"r":-13612.5,"o":-13612.5}},{"ano":2026,"mes":6,"loja":"OLHO DAGUA","canal":"VAREJO","receita_liquida":{"r":598861.13,"o":501965.87},"sga_total":{"r":-92021.93,"o":-94216.89},"pessoal":{"r":-48645.27,"o":-48507.05},"comerciais":{"r":-12641.63,"o":-12591.94},"distribuicao":{"r":-1952.68,"o":-1957.87},"administrativas":{"r":-12965.65,"o":-12302.86},"tributarias":{"r":-2082.18,"o":-4531.34},"aluguel":{"r":-8046.15,"o":-8046.13}},{"ano":2026,"mes":6,"loja":"PINHEIRO","canal":"VAREJO","receita_liquida":{"r":436932.2,"o":427017.74},"sga_total":{"r":-109214.75,"o":-115755.2},"pessoal":{"r":-60674.01,"o":-62813.74},"comerciais":{"r":-6826.97,"o":-8490.07},"distribuicao":{"r":-9408.68,"o":-13781.93},"administrativas":{"r":-11149.9,"o":-9847.88},"tributarias":{"r":-3848.62,"o":-4241.68},"aluguel":{"r":-13625.23,"o":-13625.21}},{"ano":2026,"mes":6,"loja":"QUIXABA","canal":"VAREJO","receita_liquida":{"r":291180.58,"o":351414.5},"sga_total":{"r":-123382.93,"o":-129705.47},"pessoal":{"r":-52117.94,"o":-54752.23},"comerciais":{"r":-15052.52,"o":-18860.49},"distribuicao":{"r":-492.48,"o":-1129.36},"administrativas":{"r":-25098.13,"o":-19796.62},"tributarias":{"r":-4050.52,"o":-4120.42},"aluguel":{"r":-21909.93,"o":-22062.79}},{"ano":2026,"mes":6,"loja":"RIO ANIL","canal":"VAREJO","receita_liquida":{"r":404653.22,"o":374686.45},"sga_total":{"r":-93727.29,"o":-108594.75},"pessoal":{"r":-40979.89,"o":-42974.1},"comerciais":{"r":-11278.38,"o":-14579.28},"distribuicao":{"r":-1694.35,"o":-1693.12},"administrativas":{"r":-12683.6,"o":-19159.93},"tributarias":{"r":-2526.78,"o":-2783.38},"aluguel":{"r":-19893.62,"o":-20306.12}},{"ano":2026,"mes":6,"loja":"RV PRODUÇÃO","canal":"PRODUÇÃO","receita_liquida":{"r":-81.27,"o":0.0},"sga_total":{"r":-58102.39,"o":-59098.04},"pessoal":{"r":-19996.99,"o":-18710.93},"comerciais":{"r":-2029.99,"o":-600.0},"distribuicao":{"r":-1737.56,"o":-2991.46},"administrativas":{"r":-16144.42,"o":-18569.0},"tributarias":{"r":-3404.46,"o":-3334.51},"aluguel":{"r":-14788.97,"o":-14892.14}},{"ano":2026,"mes":6,"loja":"SANTA INÊS","canal":"VAREJO","receita_liquida":{"r":219167.82,"o":220690.44},"sga_total":{"r":-56459.15,"o":-71011.38},"pessoal":{"r":-23932.58,"o":-26915.24},"comerciais":{"r":-4713.3,"o":-5642.25},"distribuicao":{"r":-4459.73,"o":-13626.12},"administrativas":{"r":-12770.96,"o":-13632.51},"tributarias":{"r":-672.32,"o":-1215.88},"aluguel":{"r":-9910.26,"o":-9979.38}},{"ano":2026,"mes":6,"loja":"SÃO LUIS SHOPPING","canal":"VAREJO","receita_liquida":{"r":391416.31,"o":388900.87},"sga_total":{"r":-105605.94,"o":-111063.0},"pessoal":{"r":-33082.29,"o":-43469.91},"comerciais":{"r":-16017.11,"o":-14952.09},"distribuicao":{"r":-1604.66,"o":-1571.07},"administrativas":{"r":-17091.17,"o":-13645.14},"tributarias":{"r":-4443.69,"o":-4431.47},"aluguel":{"r":-29196.33,"o":-28179.02}},{"ano":2026,"mes":6,"loja":"UMARIZAL","canal":"VAREJO","receita_liquida":{"r":181097.13,"o":365173.84},"sga_total":{"r":-114840.05,"o":-118192.44},"pessoal":{"r":-35829.21,"o":-37015.17},"comerciais":{"r":-15755.61,"o":-19675.26},"distribuicao":{"r":-6625.22,"o":-5397.13},"administrativas":{"r":-12177.86,"o":-9370.22},"tributarias":{"r":-3614.65,"o":-3785.86},"aluguel":{"r":-40837.5,"o":-42948.8}},{"ano":2026,"mes":6,"loja":"VILA ISABEL","canal":"VAREJO","receita_liquida":{"r":265336.59,"o":253944.05},"sga_total":{"r":-74779.62,"o":-62472.71},"pessoal":{"r":-40159.97,"o":-27008.53},"comerciais":{"r":-8102.58,"o":-5515.84},"distribuicao":{"r":-1522.66,"o":-1512.07},"administrativas":{"r":-6873.89,"o":-9995.77},"tributarias":{"r":-1257.98,"o":-1431.52},"aluguel":{"r":-16862.54,"o":-17008.99}}];
+window.__USERS__ = [{"nome": "Fadrick Leveghin", "email": "fadrick.leveghin@terrazoo.com.br", "senha": "1q2w3e4r", "papel": "admin", "ativo": "sim"}];
+window.__SNAPSHOT_DATE__ = "03/08/2026";
+</script>
+<script>
+(function(){
+"use strict";
+
+/* ======================= Config ======================= */
+var LINE_DEFS = [
+  { key:"pessoal",         label:"Gastos com Pessoal" },
+  { key:"comerciais",      label:"Despesas Comerciais" },
+  { key:"distribuicao",    label:"Despesas com Distribuição" },
+  { key:"administrativas", label:"Despesas Administrativas" },
+  { key:"tributarias",     label:"Despesas Tributárias" },
+  { key:"aluguel",         label:"Aluguel" }
+];
+var TOTAL_KEY = "sga_total";
+var TOTAL_LABEL = "SG&A (Total)";
+var MONTH_NAMES = ["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+var LS_URLS_KEY = "sga_dashboard_sheet_urls_v1";
+var SESSION_KEY = "sga_dashboard_session_v1";
+
+// Categorical palette (validated, fixed order) applied only to the 6 SG&A sub-lines in the table's dot legend.
+var CATEGORICAL_HEX = {
+  light: ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300"],
+  dark:  ["#3987e5","#d95926","#199e70","#c98500","#d55181","#008300"]
+};
+
+var state = {
+  data: window.__EMBEDDED_DATA__ || [],
+  usingSnapshot: true,
+  filters: { ano:new Set(), mes:new Set(), loja:new Set(), canal:new Set() },
+  options: { ano:[], mes:[], loja:[], canal:[] }
+};
+
+/* ======================= Utils ======================= */
+function fmtBRL(n){
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  var neg = n < 0;
+  var abs = Math.abs(n);
+  var s = abs.toLocaleString("pt-BR", { minimumFractionDigits:2, maximumFractionDigits:2 });
+  return (neg ? "-R$ " : "R$ ") + s;
+}
+function fmtPct(n, digits){
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  digits = digits === undefined ? 1 : digits;
+  return n.toLocaleString("pt-BR", { minimumFractionDigits:digits, maximumFractionDigits:digits }) + "%";
+}
+function fmtPP(n, digits){
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  digits = digits === undefined ? 1 : digits;
+  var sign = n > 0 ? "+" : "";
+  return sign + n.toLocaleString("pt-BR", { minimumFractionDigits:digits, maximumFractionDigits:digits }) + " p.p.";
+}
+function css(varName){
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+function isDark(){
+  var explicit = document.documentElement.getAttribute("data-theme");
+  if (explicit === "dark") return true;
+  if (explicit === "light") return false;
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function el(tag, attrs, children){
+  var e = document.createElement(tag);
+  attrs = attrs || {};
+  Object.keys(attrs).forEach(function(k){
+    if (k === "class") e.className = attrs[k];
+    else if (k === "html") e.innerHTML = attrs[k];
+    else if (k.indexOf("on") === 0 && typeof attrs[k] === "function") e.addEventListener(k.slice(2), attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  });
+  (children || []).forEach(function(c){ if (c) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+  return e;
+}
+
+/* ======================= Auth ======================= */
+function getUsers(){ return window.__USERS__ || []; }
+
+function tryLogin(email, senha){
+  var users = getUsers();
+  var norm = String(email || "").trim().toLowerCase();
+  var match = users.find(function(u){
+    return String(u.email || "").trim().toLowerCase() === norm && String(u.senha) === String(senha);
+  });
+  if (!match) return { ok:false, error:"E-mail ou senha inválidos." };
+  if (String(match.ativo || "").trim().toLowerCase() !== "sim") return { ok:false, error:"Usuário inativo. Contate o administrador." };
+  return { ok:true, user:match };
+}
+
+function initAuth(){
+  var form = document.getElementById("login-form");
+  var errBox = document.getElementById("login-error");
+  var saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch(e){}
+  if (saved && saved.email) {
+    enterApp(saved);
+    return;
+  }
+  form.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var email = document.getElementById("login-email").value;
+    var senha = document.getElementById("login-pass").value;
+    var res = tryLogin(email, senha);
+    if (!res.ok) {
+      errBox.textContent = res.error;
+      errBox.style.display = "block";
+      return;
+    }
+    errBox.style.display = "none";
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ email:res.user.email, nome:res.user.nome, papel:res.user.papel })); } catch(e){}
+    enterApp(res.user);
+  });
+
+  document.getElementById("btn-logout").addEventListener("click", function(){
+    try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
+    document.getElementById("app").style.display = "none";
+    document.getElementById("login-screen").style.display = "flex";
+    document.getElementById("login-form").reset();
+  });
+}
+
+function enterApp(user){
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  var name = user.nome || user.email || "Usuário";
+  document.getElementById("user-name").textContent = name;
+  document.getElementById("user-avatar").textContent = name.trim().charAt(0).toUpperCase();
+  bootDashboard();
+}
+
+/* ======================= Data pipeline ======================= */
+function computeOptions(){
+  var anos = new Set(), meses = new Set(), lojas = new Set(), canais = new Set();
+  state.data.forEach(function(r){
+    anos.add(r.ano); meses.add(r.mes); lojas.add(r.loja); canais.add(r.canal);
+  });
+  state.options.ano = Array.from(anos).sort();
+  state.options.mes = Array.from(meses).sort(function(a,b){return a-b;});
+  state.options.loja = Array.from(lojas).sort(function(a,b){ return a.localeCompare(b,"pt-BR"); });
+  state.options.canal = Array.from(canais).sort(function(a,b){ return a.localeCompare(b,"pt-BR"); });
+}
+
+function resetFiltersToAll(){
+  state.filters.ano = new Set(state.options.ano);
+  state.filters.mes = new Set(state.options.mes);
+  state.filters.loja = new Set(state.options.loja);
+  state.filters.canal = new Set(state.options.canal);
+}
+
+function getFilteredRows(){
+  var f = state.filters;
+  return state.data.filter(function(r){
+    return f.ano.has(r.ano) && f.mes.has(r.mes) && f.loja.has(r.loja) && f.canal.has(r.canal);
+  });
+}
+
+function sumRows(rows, key, field){
+  var s = 0;
+  for (var i=0;i<rows.length;i++){
+    var v = rows[i][key];
+    if (v) s += (v[field] || 0);
+  }
+  return s;
+}
+
+function aggregateTotals(rows){
+  var recR = sumRows(rows, "receita_liquida", "r");
+  var recO = sumRows(rows, "receita_liquida", "o");
+  var sgaR = sumRows(rows, TOTAL_KEY, "r");
+  var sgaO = sumRows(rows, TOTAL_KEY, "o");
+  return {
+    recR: recR, recO: recO, sgaR: sgaR, sgaO: sgaO,
+    avR: recR ? Math.abs(sgaR)/recR*100 : null,
+    avO: recO ? Math.abs(sgaO)/recO*100 : null
+  };
+}
+
+function aggregateByLine(rows){
+  var recR = sumRows(rows, "receita_liquida", "r");
+  var recO = sumRows(rows, "receita_liquida", "o");
+  var out = LINE_DEFS.map(function(def){
+    var r = sumRows(rows, def.key, "r");
+    var o = sumRows(rows, def.key, "o");
+    return {
+      key: def.key, label: def.label,
+      r: r, o: o, varRS: r - o,
+      avR: recR ? Math.abs(r)/recR*100 : null,
+      avO: recO ? Math.abs(o)/recO*100 : null,
+      varPP: (recR && recO) ? (Math.abs(r)/recR*100 - Math.abs(o)/recO*100) : null
+    };
+  });
+  var tot = aggregateTotals(rows);
+  out.total = {
+    key: TOTAL_KEY, label: TOTAL_LABEL, r: tot.sgaR, o: tot.sgaO, varRS: tot.sgaR - tot.sgaO,
+    avR: tot.avR, avO: tot.avO,
+    varPP: (tot.avR !== null && tot.avO !== null) ? (tot.avR - tot.avO) : null
+  };
+  return out;
+}
+
+function aggregateByMonth(rows){
+  var buckets = {};
+  rows.forEach(function(r){
+    var k = r.ano + "-" + r.mes;
+    if (!buckets[k]) buckets[k] = { ano:r.ano, mes:r.mes, rows:[] };
+    buckets[k].rows.push(r);
+  });
+  var keys = Object.keys(buckets).sort(function(a,b){
+    var A = buckets[a], B = buckets[b];
+    return A.ano - B.ano || A.mes - B.mes;
+  });
+  return keys.map(function(k){
+    var b = buckets[k];
+    var t = aggregateTotals(b.rows);
+    return { ano:b.ano, mes:b.mes, label: MONTH_NAMES[b.mes] + "/" + String(b.ano).slice(2), avR:t.avR, avO:t.avO };
+  });
+}
+
+/* ======================= Multi-select filter UI ======================= */
+var MS_LABELS = { ano:"Ano", mes:"Mês", loja:"Loja", canal:"Canal" };
+function optionLabel(kind, v){
+  if (kind === "mes") return MONTH_NAMES[v];
+  return String(v);
+}
+
+function renderFilterPanels(){
+  ["ano","mes","loja","canal"].forEach(function(kind){
+    var panel = document.querySelector('[data-panel="' + kind + '"]');
+    panel.innerHTML = "";
+    var actions = el("div", { class:"ms-panel-actions" }, [
+      el("a", { onclick:function(ev){ ev.stopPropagation(); state.options[kind].forEach(function(v){ state.filters[kind].add(v); }); refreshAll(); } }, ["Todos"]),
+      el("a", { onclick:function(ev){ ev.stopPropagation(); state.filters[kind].clear(); refreshAll(); } }, ["Nenhum"])
+    ]);
+    panel.appendChild(actions);
+    state.options[kind].forEach(function(v){
+      var id = "opt-" + kind + "-" + String(v).replace(/[^a-zA-Z0-9]/g,"_");
+      var checked = state.filters[kind].has(v);
+      var input = el("input", { type:"checkbox", id:id });
+      input.checked = checked;
+      input.addEventListener("change", function(){
+        if (input.checked) state.filters[kind].add(v); else state.filters[kind].delete(v);
+        updateFilterButtonCounts();
+        renderDashboardBody();
+      });
+      var label = el("label", { for:id }, [optionLabel(kind, v)]);
+      panel.appendChild(el("div", { class:"ms-opt" }, [input, label]));
+    });
+  });
+}
+
+function closeAllFilterPanels(){
+  document.querySelectorAll(".ms-panel").forEach(function(p){ p.classList.add("hidden"); });
+}
+
+function initFilterUIChrome(){
+  // Delegated + registered once: avoids stacking duplicate listeners on every re-render.
+  document.getElementById("filters-bar").addEventListener("click", function(ev){
+    var btn = ev.target.closest("[data-toggle]");
+    if (!btn) return;
+    ev.stopPropagation();
+    var kind = btn.getAttribute("data-toggle");
+    var panel = document.querySelector('[data-panel="' + kind + '"]');
+    var willOpen = panel.classList.contains("hidden");
+    closeAllFilterPanels();
+    if (willOpen) panel.classList.remove("hidden");
+  });
+  document.addEventListener("click", function(ev){
+    if (ev.target.closest(".ms")) return; // clicks inside a filter (checkboxes, Todos/Nenhum) must not close it
+    closeAllFilterPanels();
+  });
+}
+
+function updateFilterButtonCounts(){
+  ["ano","mes","loja","canal"].forEach(function(kind){
+    var span = document.querySelector('[data-count="' + kind + '"]');
+    var n = state.filters[kind].size, total = state.options[kind].length;
+    span.textContent = "(" + n + "/" + total + ")";
+  });
+}
+
+function refreshAll(){
+  updateFilterButtonCounts();
+  renderFilterPanels();
+  renderDashboardBody();
+}
+
+/* ======================= KPI cards ======================= */
+function renderKPIs(){
+  var rows = getFilteredRows();
+  var t = aggregateTotals(rows);
+  var grid = document.getElementById("kpi-grid");
+  grid.innerHTML = "";
+
+  var deltaPP = (t.avR !== null && t.avO !== null) ? (t.avR - t.avO) : null;
+  var deltaClass = deltaPP === null ? "flat" : (deltaPP <= 0.001 ? "good" : "bad");
+  var deltaArrow = deltaPP === null ? "" : (deltaPP > 0 ? "▲" : (deltaPP < 0 ? "▼" : "•"));
+
+  grid.appendChild(kpiCard("Receita Líquida (Realizado)", fmtBRL(t.recR), "Orçado: " + fmtBRL(t.recO)));
+  grid.appendChild(kpiCard("SG&A Total (Realizado)", fmtBRL(t.sgaR), "Orçado: " + fmtBRL(t.sgaO)));
+  grid.appendChild(kpiCard("AV% SG&A — Realizado", fmtPct(t.avR), "% da Receita Líquida"));
+  grid.appendChild(kpiCard("AV% SG&A — Orçado vs Realizado", fmtPct(t.avO),
+    null, deltaArrow ? (deltaArrow + " " + fmtPP(deltaPP)) : null, deltaClass));
+}
+function kpiCard(label, value, sub, deltaText, deltaClass){
+  var children = [ el("div",{class:"lbl"},[label]), el("div",{class:"val"},[value]) ];
+  if (sub) children.push(el("div",{class:"sub"},[sub]));
+  if (deltaText) children.push(el("div",{class:"sub"},[el("span",{class:"delta "+deltaClass},[deltaText]), " vs. orçado"]));
+  return el("div",{class:"kpi-card"}, children);
+}
+
+/* ======================= Table ======================= */
+function renderTable(){
+  var rows = getFilteredRows();
+  var lines = aggregateByLine(rows);
+  var tbody = document.getElementById("sga-table-body");
+  tbody.innerHTML = "";
+  var dark = isDark();
+
+  lines.forEach(function(l, idx){
+    var hex = (dark ? CATEGORICAL_HEX.dark : CATEGORICAL_HEX.light)[idx % 6];
+    tbody.appendChild(buildRow(l, hex, false));
+  });
+  tbody.appendChild(buildRow(lines.total, null, true));
+
+  function buildRow(l, dotColor, isTotal){
+    var ppClass = l.varPP === null ? "flat" : (l.varPP <= 0.05 ? "good" : "bad");
+    var nameCell = isTotal ? el("span",{},[l.label]) :
+      el("span",{class:"line-name"},[ el("span",{class:"line-dot", style:"background:"+dotColor}), l.label ]);
+    var tr = el("tr", { class: isTotal ? "total-row" : "" }, [
+      el("td",{},[nameCell]),
+      el("td",{},[fmtBRL(l.r)]),
+      el("td",{},[fmtBRL(l.o)]),
+      el("td",{},[fmtBRL(l.varRS)]),
+      el("td",{},[fmtPct(l.avR)]),
+      el("td",{},[fmtPct(l.avO)]),
+      el("td",{},[ el("span",{class:"delta "+ppClass},[fmtPP(l.varPP)]) ])
+    ]);
+    return tr;
+  }
+}
+
+/* ======================= Tooltip ======================= */
+var tooltipEl;
+function showTooltip(x, y, html){
+  tooltipEl = tooltipEl || document.getElementById("tooltip");
+  tooltipEl.innerHTML = html;
+  tooltipEl.style.left = (x + 14) + "px";
+  tooltipEl.style.top = (y + 14) + "px";
+  tooltipEl.style.opacity = "1";
+}
+function hideTooltip(){
+  if (tooltipEl) tooltipEl.style.opacity = "0";
+}
+
+/* ======================= Chart: monthly trend (line) ======================= */
+function renderTrendChart(){
+  var rows = getFilteredRows();
+  var monthly = aggregateByMonth(rows);
+  var host = document.getElementById("chart-trend");
+  host.innerHTML = "";
+
+  var W = Math.max(host.clientWidth || 560, 320), H = 260;
+  var padL = 40, padR = 54, padT = 16, padB = 30;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+
+  if (monthly.length === 0){
+    host.appendChild(el("div",{style:"padding:40px;text-align:center;color:var(--text-muted);font-size:13px;"},["Sem dados para os filtros selecionados."]));
+    return;
+  }
+
+  var vals = [];
+  monthly.forEach(function(m){ if (m.avR!==null) vals.push(m.avR); if (m.avO!==null) vals.push(m.avO); });
+  var maxV = vals.length ? Math.max.apply(null, vals) : 10;
+  var niceMax = Math.ceil((maxV * 1.2) / 5) * 5 || 10;
+
+  var xStep = monthly.length > 1 ? plotW / (monthly.length - 1) : 0;
+  function xAt(i){ return padL + (monthly.length > 1 ? i * xStep : plotW/2); }
+  function yAt(v){ return padT + plotH - (v / niceMax) * plotH; }
+
+  var svgNS = "http://www.w3.org/2000/svg";
+  var svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", H);
+
+  // gridlines + y ticks
+  var ticks = 4;
+  for (var t=0; t<=ticks; t++){
+    var v = (niceMax / ticks) * t;
+    var y = yAt(v);
+    var gl = document.createElementNS(svgNS,"line");
+    gl.setAttribute("x1", padL); gl.setAttribute("x2", W - padR);
+    gl.setAttribute("y1", y); gl.setAttribute("y2", y);
+    gl.setAttribute("class","grid-line");
+    svg.appendChild(gl);
+    var lbl = document.createElementNS(svgNS,"text");
+    lbl.setAttribute("x", padL - 8); lbl.setAttribute("y", y + 3);
+    lbl.setAttribute("text-anchor","end"); lbl.setAttribute("class","tick-label");
+    lbl.textContent = v.toFixed(0) + "%";
+    svg.appendChild(lbl);
+  }
+  // x labels — pick an evenly-spaced subset (always incl. first/last) so labels never collide
+  var maxTicks = Math.max(2, Math.floor(plotW / 46) + 1);
+  var tickIdx = [];
+  if (monthly.length <= maxTicks){
+    for (var ti=0; ti<monthly.length; ti++) tickIdx.push(ti);
+  } else {
+    for (var tk=0; tk<maxTicks; tk++){
+      var idx = Math.round(tk * (monthly.length - 1) / (maxTicks - 1));
+      if (tickIdx.indexOf(idx) === -1) tickIdx.push(idx);
+    }
+  }
+  tickIdx.forEach(function(i){
+    var m = monthly[i];
+    var lbl = document.createElementNS(svgNS,"text");
+    lbl.setAttribute("x", xAt(i)); lbl.setAttribute("y", H - 8);
+    lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","tick-label");
+    lbl.textContent = m.label;
+    svg.appendChild(lbl);
+  });
+
+  function linePath(field){
+    var d = "";
+    monthly.forEach(function(m, i){
+      var v = m[field];
+      if (v === null || v === undefined) return;
+      d += (d ? " L " : "M ") + xAt(i) + " " + yAt(v);
+    });
+    return d;
+  }
+
+  var pathO = document.createElementNS(svgNS,"path");
+  pathO.setAttribute("d", linePath("avO"));
+  pathO.setAttribute("fill","none"); pathO.setAttribute("stroke", css("--series-orc"));
+  pathO.setAttribute("stroke-width","2"); pathO.setAttribute("stroke-linecap","round"); pathO.setAttribute("stroke-linejoin","round");
+  pathO.setAttribute("stroke-dasharray","5 4");
+  svg.appendChild(pathO);
+
+  var pathR = document.createElementNS(svgNS,"path");
+  pathR.setAttribute("d", linePath("avR"));
+  pathR.setAttribute("fill","none"); pathR.setAttribute("stroke", css("--series-real"));
+  pathR.setAttribute("stroke-width","2.5"); pathR.setAttribute("stroke-linecap","round"); pathR.setAttribute("stroke-linejoin","round");
+  svg.appendChild(pathR);
+
+  // markers + hover targets
+  monthly.forEach(function(m, i){
+    [["avR","--series-real"], ["avO","--series-orc"]].forEach(function(pair){
+      var v = m[pair[0]];
+      if (v === null || v === undefined) return;
+      var c = document.createElementNS(svgNS,"circle");
+      c.setAttribute("cx", xAt(i)); c.setAttribute("cy", yAt(v)); c.setAttribute("r","4");
+      c.setAttribute("fill", css(pair[1])); c.setAttribute("stroke", css("--surface-1")); c.setAttribute("stroke-width","1.5");
+      svg.appendChild(c);
+    });
+    var hit = document.createElementNS(svgNS,"rect");
+    hit.setAttribute("x", xAt(i) - (xStep||20)/2); hit.setAttribute("y", padT);
+    hit.setAttribute("width", xStep || 40); hit.setAttribute("height", plotH);
+    hit.setAttribute("fill","transparent");
+    hit.addEventListener("mousemove", function(ev){
+      var html = '<div class="t-title">' + m.label + '</div>' +
+        '<div class="t-row"><span>Realizado</span><strong>' + fmtPct(m.avR) + '</strong></div>' +
+        '<div class="t-row"><span>Orçado</span><strong>' + fmtPct(m.avO) + '</strong></div>';
+      showTooltip(ev.clientX, ev.clientY, html);
+    });
+    hit.addEventListener("mouseleave", hideTooltip);
+    svg.appendChild(hit);
+  });
+
+  // direct label on last point
+  var last = monthly[monthly.length - 1];
+  if (last.avR !== null){
+    var lr = document.createElementNS(svgNS,"text");
+    lr.setAttribute("x", xAt(monthly.length-1) + 8); lr.setAttribute("y", yAt(last.avR) + 4);
+    lr.setAttribute("class","direct-label"); lr.setAttribute("fill", css("--series-real"));
+    lr.textContent = fmtPct(last.avR, 1);
+    svg.appendChild(lr);
+  }
+
+  host.appendChild(svg);
+}
+
+/* ======================= Chart: line breakdown (grouped horizontal bars) ======================= */
+function renderBarChart(){
+  var rows = getFilteredRows();
+  var lines = aggregateByLine(rows).slice().sort(function(a,b){ return (b.avR||0) - (a.avR||0); });
+  var host = document.getElementById("chart-bars");
+  host.innerHTML = "";
+
+  var rowH = 34, gap = 10;
+  var W = Math.max(host.clientWidth || 480, 300);
+  var padL = 190, padR = 46, padT = 10, padB = 10;
+  var plotW = W - padL - padR;
+  var H = padT + padB + lines.length * (rowH + gap) - gap;
+
+  var maxV = 0;
+  lines.forEach(function(l){ maxV = Math.max(maxV, l.avR||0, l.avO||0); });
+  var niceMax = Math.ceil((maxV * 1.15) || 10);
+
+  var svgNS = "http://www.w3.org/2000/svg";
+  var svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.setAttribute("width","100%"); svg.setAttribute("height", H);
+
+  function xAt(v){ return padL + (v/niceMax) * plotW; }
+
+  // baseline
+  var base = document.createElementNS(svgNS,"line");
+  base.setAttribute("x1", padL); base.setAttribute("x2", padL);
+  base.setAttribute("y1", padT); base.setAttribute("y2", H - padB);
+  base.setAttribute("class","axis-line");
+  svg.appendChild(base);
+
+  lines.forEach(function(l, i){
+    var y0 = padT + i * (rowH + gap);
+    var barH = 12;
+
+    var lbl = document.createElementNS(svgNS,"text");
+    lbl.setAttribute("x", padL - 10); lbl.setAttribute("y", y0 + rowH/2 + 4);
+    lbl.setAttribute("text-anchor","end"); lbl.setAttribute("class","tick-label");
+    lbl.textContent = l.label;
+    svg.appendChild(lbl);
+
+    [["avR","--series-real", 0], ["avO","--series-orc", barH+3]].forEach(function(spec){
+      var v = l[spec[0]] || 0;
+      var w = Math.max(xAt(v) - padL, 0);
+      var rect = document.createElementNS(svgNS,"rect");
+      rect.setAttribute("x", padL); rect.setAttribute("y", y0 + spec[2]);
+      rect.setAttribute("width", w); rect.setAttribute("height", barH);
+      rect.setAttribute("rx", 3);
+      rect.setAttribute("fill", css(spec[1]));
+      svg.appendChild(rect);
+
+      rect.addEventListener("mousemove", function(ev){
+        var html = '<div class="t-title">' + l.label + '</div>' +
+          '<div class="t-row"><span>Realizado</span><strong>' + fmtPct(l.avR) + '</strong></div>' +
+          '<div class="t-row"><span>Orçado</span><strong>' + fmtPct(l.avO) + '</strong></div>';
+        showTooltip(ev.clientX, ev.clientY, html);
+      });
+      rect.addEventListener("mouseleave", hideTooltip);
+    });
+
+    var valLbl = document.createElementNS(svgNS,"text");
+    var vR = l.avR || 0;
+    valLbl.setAttribute("x", xAt(vR) + 6); valLbl.setAttribute("y", y0 + barH/2 + 4);
+    valLbl.setAttribute("class","tick-label");
+    valLbl.textContent = fmtPct(l.avR, 1);
+    svg.appendChild(valLbl);
+  });
+
+  host.appendChild(svg);
+}
+
+/* ======================= Data source banner + Google Sheets loader ======================= */
+function setBanner(kind, html, showDismiss){
+  var box = document.getElementById("data-banner");
+  if (!html) { box.innerHTML = ""; return; }
+  var content = el("div",{ class:"banner " + kind, html: html });
+  if (showDismiss){
+    var btn = el("button",{ class:"btn btn-ghost btn-sm", onclick:function(){ box.innerHTML = ""; } },["Fechar"]);
+    content.appendChild(btn);
+  }
+  box.innerHTML = "";
+  box.appendChild(content);
+}
+
+function parseCSV(text){
+  var rows = []; var row = []; var field = ""; var inQuotes = false;
+  for (var i=0; i<text.length; i++){
+    var c = text[i];
+    if (inQuotes){
+      if (c === '"'){
+        if (text[i+1] === '"'){ field += '"'; i++; } else { inQuotes = false; }
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ","){ row.push(field); field = ""; }
+      else if (c === "\n"){ row.push(field); rows.push(row); row = []; field = ""; }
+      else if (c === "\r"){ /* skip */ }
+      else field += c;
+    }
+  }
+  if (field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(function(r){ return r.length > 1 || (r.length===1 && r[0] !== ""); });
+}
+
+function normHeader(h){
+  return String(h||"").trim().toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g,"");
+}
+
+function parseNumberLoose(s){
+  if (s === null || s === undefined) return 0;
+  var str = String(s).trim();
+  if (str === "") return 0;
+  str = str.replace(/[^0-9,.\-]/g, "");
+  var lastComma = str.lastIndexOf(","), lastDot = str.lastIndexOf(".");
+  if (lastComma > -1 && lastDot > -1){
+    if (lastComma > lastDot){ str = str.replace(/\./g, "").replace(",", "."); }
+    else { str = str.replace(/,/g, ""); }
+  } else if (lastComma > -1){
+    str = str.replace(/\./g, "").replace(",", ".");
+  }
+  var n = parseFloat(str);
+  return isNaN(n) ? 0 : n;
+}
+
+function parseMesAno(s){
+  var str = String(s || "").trim();
+  var m = str.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/); // YYYY-MM-DD
+  if (m) return { ano: parseInt(m[1],10), mes: parseInt(m[2],10) };
+  m = str.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/); // DD/MM/YYYY
+  if (m) return { ano: parseInt(m[3],10), mes: parseInt(m[2],10) };
+  m = str.match(/^(\d{1,2})[\/\-](\d{4})/); // MM/YYYY
+  if (m) return { ano: parseInt(m[2],10), mes: parseInt(m[1],10) };
+  var d = new Date(str);
+  if (!isNaN(d.getTime())) return { ano: d.getFullYear(), mes: d.getMonth()+1 };
+  return null;
+}
+
+var TARGET_LINES = {
+  "receita liquida": "receita_liquida",
+  "sg&a": "sga_total",
+  "gastos com pessoal - sg&a": "pessoal",
+  "despesas comerciais": "comerciais",
+  "despesas com distribuicao": "distribuicao",
+  "despesas administrativas": "administrativas",
+  "despesas tributarias": "tributarias",
+  "aluguel": "aluguel"
+};
+
+function buildRowsFromCSV(text, anoHint){
+  var table = parseCSV(text);
+  if (!table.length) return [];
+  var header = table[0].map(normHeader);
+  var idx = {
+    mesAno: header.findIndex(function(h){ return h.indexOf("mes ano") > -1 || h.indexOf("mes/ano") > -1; }),
+    loja: header.indexOf("loja"),
+    canal: header.indexOf("canal"),
+    dre: header.indexOf("dre")
+  };
+  if (idx.mesAno < 0) idx.mesAno = 0;
+  if (idx.loja < 0) idx.loja = 1;
+  if (idx.canal < 0) idx.canal = 2;
+  if (idx.dre < 0) idx.dre = 3;
+  var usedCols = [idx.mesAno, idx.loja, idx.canal, idx.dre];
+  var remaining = header.map(function(_,i){return i;}).filter(function(i){ return usedCols.indexOf(i) === -1; });
+  var realIdx = remaining[0] !== undefined ? remaining[0] : 4;
+  var orcIdx = remaining[1] !== undefined ? remaining[1] : 5;
+
+  var buckets = {};
+  for (var r=1; r<table.length; r++){
+    var row = table[r];
+    if (!row || row.length < 4) continue;
+    var dreName = normHeader(row[idx.dre]).replace(/[«»"]/g,"").trim();
+    var key = TARGET_LINES[dreName];
+    if (!key) continue;
+    var when = parseMesAno(row[idx.mesAno]);
+    if (!when) continue;
+    if (anoHint && when.ano !== anoHint) { /* keep parsed year, hint is just a sanity default */ }
+    var loja = row[idx.loja], canal = row[idx.canal];
+    var bKey = when.ano + "|" + when.mes + "|" + loja + "|" + canal;
+    if (!buckets[bKey]) buckets[bKey] = { ano: when.ano, mes: when.mes, loja: loja, canal: canal };
+    var rv = parseNumberLoose(row[realIdx]);
+    var ov = parseNumberLoose(row[orcIdx]);
+    var prev = buckets[bKey][key] || { r: 0, o: 0 };
+    buckets[bKey][key] = { r: prev.r + rv, o: prev.o + ov };
+  }
+  return Object.keys(buckets).map(function(k){ return buckets[k]; });
+}
+
+function fetchText(url){
+  return fetch(url, { credentials:"omit", mode:"cors" }).then(function(resp){
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    return resp.text();
+  });
+}
+
+function loadFromGoogleSheets(url2025, url2026){
+  var statusEl = document.getElementById("ds-status");
+  statusEl.textContent = "Carregando dados...";
+  var tasks = [];
+  if (url2025) tasks.push(fetchText(url2025).then(function(t){ return buildRowsFromCSV(t, 2025); }));
+  if (url2026) tasks.push(fetchText(url2026).then(function(t){ return buildRowsFromCSV(t, 2026); }));
+  if (!tasks.length){
+    statusEl.textContent = "Informe ao menos um link de CSV publicado.";
+    return;
+  }
+  Promise.all(tasks).then(function(results){
+    var combined = [].concat.apply([], results);
+    if (!combined.length) throw new Error("Nenhuma linha reconhecida no CSV (verifique o formato).");
+    state.data = combined;
+    state.usingSnapshot = false;
+    try { localStorage.setItem(LS_URLS_KEY, JSON.stringify({ url2025:url2025, url2026:url2026 })); } catch(e){}
+    computeOptions();
+    resetFiltersToAll();
+    updateFilterButtonCounts();
+    renderFilterPanels();
+    renderDashboardBody();
+    statusEl.textContent = "Dados carregados do Google Sheets com sucesso (" + combined.length + " combinações mês/loja/canal).";
+    setBanner("ok", "Exibindo dados ao vivo do Google Sheets.", true);
+  }).catch(function(err){
+    statusEl.textContent = "Falha ao carregar do Google Sheets: " + err.message + ". Mantendo o snapshot local.";
+    setBanner("warn", "Não foi possível carregar do Google Sheets (" + err.message + "). Exibindo o snapshot local (" + window.__SNAPSHOT_DATE__ + ").", true);
+  });
+}
+
+function useSnapshot(){
+  state.data = window.__EMBEDDED_DATA__ || [];
+  state.usingSnapshot = true;
+  try { localStorage.removeItem(LS_URLS_KEY); } catch(e){}
+  computeOptions();
+  resetFiltersToAll();
+  updateFilterButtonCounts();
+  renderFilterPanels();
+  renderDashboardBody();
+  document.getElementById("ds-status").textContent = "Usando o snapshot local (" + window.__SNAPSHOT_DATE__ + ").";
+  setBanner("", "");
+}
+
+function initDataSourcePanel(){
+  document.getElementById("snapshot-date").textContent = window.__SNAPSHOT_DATE__;
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LS_URLS_KEY) || "null"); } catch(e){}
+  if (saved){
+    document.getElementById("ds-url-2025").value = saved.url2025 || "";
+    document.getElementById("ds-url-2026").value = saved.url2026 || "";
+  }
+  document.getElementById("btn-load-sheets").addEventListener("click", function(){
+    loadFromGoogleSheets(document.getElementById("ds-url-2025").value.trim(), document.getElementById("ds-url-2026").value.trim());
+  });
+  document.getElementById("btn-use-snapshot").addEventListener("click", useSnapshot);
+
+  if (saved && (saved.url2025 || saved.url2026)){
+    loadFromGoogleSheets(saved.url2025, saved.url2026);
+  }
+}
+
+/* ======================= CSV export ======================= */
+function exportCSV(){
+  var rows = getFilteredRows();
+  var lines = aggregateByLine(rows);
+  var all = lines.concat([lines.total]);
+  var header = ["Linha","Realizado (R$)","Orcado (R$)","Variacao (R$)","AV% Realizado","AV% Orcado","Variacao (p.p.)"];
+  var csvRows = [header.join(";")];
+  all.forEach(function(l){
+    csvRows.push([
+      l.label,
+      l.r.toFixed(2).replace(".",","),
+      l.o.toFixed(2).replace(".",","),
+      l.varRS.toFixed(2).replace(".",","),
+      l.avR===null?"":l.avR.toFixed(2).replace(".",","),
+      l.avO===null?"":l.avO.toFixed(2).replace(".",","),
+      l.varPP===null?"":l.varPP.toFixed(2).replace(".",",")
+    ].join(";"));
+  });
+  var blob = new Blob(["﻿" + csvRows.join("\n")], { type:"text/csv;charset=utf-8;" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = "sga_analise_" + Date.now() + ".csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ======================= Boot ======================= */
+function renderDashboardBody(){
+  renderKPIs();
+  renderTable();
+  renderTrendChart();
+  renderBarChart();
+}
+
+function bootDashboard(){
+  computeOptions();
+  resetFiltersToAll();
+  updateFilterButtonCounts();
+  renderFilterPanels();
+  initFilterUIChrome();
+  renderDashboardBody();
+  initDataSourcePanel();
+
+  document.getElementById("btn-reset-filters").addEventListener("click", function(){
+    resetFiltersToAll();
+    refreshAll();
+  });
+  document.getElementById("btn-export-csv").addEventListener("click", exportCSV);
+
+  window.addEventListener("resize", debounce(function(){
+    renderTrendChart(); renderBarChart();
+  }, 150));
+
+  if (window.matchMedia){
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){
+      renderTable(); renderTrendChart(); renderBarChart();
+    });
+  }
+}
+
+function debounce(fn, ms){
+  var t;
+  return function(){
+    var args = arguments;
+    clearTimeout(t);
+    t = setTimeout(function(){ fn.apply(null, args); }, ms);
+  };
+}
+
+document.addEventListener("DOMContentLoaded", initAuth);
+
+})();
+
+</script>
+</body>
+</html>
