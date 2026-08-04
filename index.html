@@ -135,12 +135,33 @@
   }
   .sidebar-user{
     display:flex; align-items:center; gap:10px; padding:14px 16px; border-top:1px solid var(--border);
-    margin-top:auto;
+    margin-top:auto; cursor:pointer; appearance:none; background:transparent; border-left:none; border-right:none; border-bottom:none;
+    width:100%; text-align:left; font-family:inherit;
   }
+  .sidebar-user:hover{ background:var(--chip-bg); }
   .sidebar-user-name{ flex:1; font-size:13px; font-weight:600; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .sidebar.collapsed .sidebar-user{ flex-direction:column; padding:14px 6px; gap:8px; }
-  .sidebar.collapsed .sidebar-user-name,
-  .sidebar.collapsed .sidebar-user .btn{ display:none; }
+  .sidebar.collapsed .sidebar-user-name{ display:none; }
+
+  .account-popover{
+    position:fixed; z-index:110; width:220px; background:var(--surface-1); border:1px solid var(--border);
+    border-radius:12px; box-shadow:var(--shadow); padding:14px;
+  }
+  .account-popover-head{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-muted);
+  }
+  .account-popover-close{
+    appearance:none; border:none; background:transparent; cursor:pointer; color:var(--text-muted);
+    font-size:17px; line-height:1; padding:0;
+  }
+  .account-popover-close:hover{ color:var(--text-primary); }
+  .account-popover-rule{ border:none; border-top:1px solid var(--border); margin:10px 0; }
+  .account-popover-logout{
+    appearance:none; border:none; background:transparent; cursor:pointer; color:var(--critical); font-weight:700;
+    font-size:13.5px; padding:2px 0; text-align:left; width:100%; font-family:inherit;
+  }
+  .account-popover-logout:hover{ text-decoration:underline; }
   .app-topbar .btn-ghost{ color:rgba(255,255,255,0.85); border-color:rgba(255,255,255,0.25); }
   .app-topbar .btn-ghost:hover{ background:rgba(255,255,255,0.12); }
 
@@ -150,7 +171,8 @@
   .sidebar{
     display:flex; flex-direction:column;
     flex:none; width:250px; background:var(--surface-1); border-right:1px solid var(--border);
-    position:sticky; top:57px; align-self:flex-start; max-height:calc(100vh - 57px); overflow-y:auto;
+    position:sticky; top:57px; align-self:flex-start;
+    min-height:calc(100vh - 57px); max-height:calc(100vh - 57px); overflow-y:auto;
     transition:width .16s ease;
   }
   .sidebar.collapsed{ width:60px; }
@@ -311,7 +333,7 @@
 
   @media (max-width: 760px){
     .app-body{ flex-direction:column; }
-    .sidebar{ width:100% !important; position:relative; top:0; max-height:none; border-right:none; border-bottom:1px solid var(--border); }
+    .sidebar{ width:100% !important; position:relative; top:0; min-height:0; max-height:none; border-right:none; border-bottom:1px solid var(--border); }
     .sidebar.collapsed .sidebar-content{ display:none; }
     .sidebar.collapsed .sf-mono{ display:none; }
     .main-content{ width:100%; padding:16px 16px 48px; }
@@ -393,12 +415,20 @@
         </div>
       </div>
 
-      <div class="sidebar-user">
+      <button type="button" class="sidebar-user" id="sidebar-user-trigger">
         <span class="avatar" id="user-avatar">?</span>
         <span id="user-name" class="sidebar-user-name">—</span>
-        <button class="btn btn-ghost btn-sm" id="btn-logout">Sair</button>
-      </div>
+      </button>
     </aside>
+
+    <div class="account-popover hidden" id="account-popover">
+      <div class="account-popover-head">
+        <span>Conta</span>
+        <button type="button" class="account-popover-close" id="account-popover-close" aria-label="Fechar">&times;</button>
+      </div>
+      <hr class="account-popover-rule">
+      <button type="button" class="account-popover-logout" id="btn-logout">Sair</button>
+    </div>
 
     <main class="main-content">
       <div id="data-banner"></div>
@@ -896,6 +926,39 @@ function initSidebarChrome(){
       }
     });
   });
+}
+
+function initAccountPopover(){
+  var trigger = document.getElementById("sidebar-user-trigger");
+  var popover = document.getElementById("account-popover");
+
+  function place(){
+    var r = trigger.getBoundingClientRect();
+    popover.style.left = r.left + "px";
+    popover.style.bottom = (window.innerHeight - r.top + 8) + "px";
+  }
+  function open(){
+    place();
+    popover.classList.remove("hidden");
+  }
+  function close(){
+    popover.classList.add("hidden");
+  }
+
+  trigger.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    if (popover.classList.contains("hidden")) open(); else close();
+  });
+  document.getElementById("account-popover-close").addEventListener("click", function(ev){
+    ev.stopPropagation();
+    close();
+  });
+  document.addEventListener("click", function(ev){
+    if (!popover.classList.contains("hidden") && !ev.target.closest("#account-popover")) close();
+  });
+  window.addEventListener("resize", debounce(function(){
+    if (!popover.classList.contains("hidden")) place();
+  }, 100));
 }
 
 function updateFilterButtonCounts(){
@@ -1693,6 +1756,7 @@ function initChromeOnce(){
   chromeInitialized = true;
 
   initSidebarChrome();
+  initAccountPopover();
   initDataSourcePanel();
   initExpensePanel();
 
