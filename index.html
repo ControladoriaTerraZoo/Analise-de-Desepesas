@@ -662,19 +662,18 @@
           <summary>Fonte de dados &amp; atualização via Google Sheets</summary>
           <div class="ds-help">
             Este dashboard vem com um <strong>snapshot</strong> dos dados (extraído da planilha em <span id="snapshot-date"></span>).
-            Para manter o dashboard sempre atualizado a partir da planilha do Google Sheets, publique cada aba
-            (<code>2025</code> e <code>2026</code>) como CSV — no Sheets: <em>Arquivo → Compartilhar → Publicar na web →
-            selecione a aba → formato CSV</em> — e cole os links abaixo. As colunas devem seguir a mesma ordem da planilha
-            original: <code>Mês Ano, Loja, Canal, DRE, Realizado, Orçado</code>.
+            Para manter o dashboard sempre atualizado a partir da planilha do Google Sheets sem expor um link público,
+            publique um <strong>Apps Script</strong> (Extensões → Apps Script, na própria planilha) como Web App e cole
+            abaixo a URL gerada (termina em <code>/exec</code>) e o token secreto configurado no script.
           </div>
           <div class="ds-grid">
             <div class="ds-field">
-              <label for="ds-url-2025">CSV publicado — aba 2025</label>
-              <input id="ds-url-2025" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=0&single=true&output=csv">
+              <label for="ds-appscript-url">URL do Apps Script (Web App)</label>
+              <input id="ds-appscript-url" type="url" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
             </div>
             <div class="ds-field">
-              <label for="ds-url-2026">CSV publicado — aba 2026</label>
-              <input id="ds-url-2026" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=123&single=true&output=csv">
+              <label for="ds-appscript-token">Token</label>
+              <input id="ds-appscript-token" type="text" placeholder="Mesmo token configurado no script">
             </div>
           </div>
           <div class="ds-actions">
@@ -805,7 +804,7 @@ var LINE_DEFS = [
 var TOTAL_KEY = "sga_total";
 var TOTAL_LABEL = "SG&A (Total)";
 var MONTH_NAMES = ["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-var LS_URLS_KEY = "sga_dashboard_sheet_urls_v1";
+var LS_APPSCRIPT_KEY = "sga_dashboard_appscript_v1";
 var SESSION_KEY = "sga_dashboard_session_v1";
 var PWD_OVERRIDE_KEY = "sga_dashboard_pwd_overrides_v1";
 
@@ -2514,18 +2513,17 @@ function loadFromGoogleSheets(url2025, url2026){
   if (url2025) tasks.push(fetchText(url2025).then(parseSheetRows));
   if (url2026) tasks.push(fetchText(url2026).then(parseSheetRows));
   if (!tasks.length){
-    statusEl.textContent = "Informe ao menos um link de CSV publicado.";
+    statusEl.textContent = "Informe a URL do Apps Script.";
     return;
   }
   Promise.all(tasks).then(function(results){
     var sheetRows = [].concat.apply([], results);
     var topRows = buildTopRowsFromSheetRows(sheetRows);
-    if (!topRows.length) throw new Error("Nenhuma linha reconhecida no CSV (verifique o formato).");
+    if (!topRows.length) throw new Error("Nenhuma linha reconhecida (verifique a URL/token do Apps Script).");
     var granularRows = buildGranularRowsFromSheetRows(sheetRows);
     state.data = topRows;
     state.granular = compactGranular(granularRows);
     state.usingSnapshot = false;
-    try { localStorage.setItem(LS_URLS_KEY, JSON.stringify({ url2025:url2025, url2026:url2026 })); } catch(e){}
     computeOptions();
     resetFiltersToAll();
     updateFilterButtonCounts();
@@ -2541,11 +2539,28 @@ function loadFromGoogleSheets(url2025, url2026){
   });
 }
 
+// Appends the year (and token, if set) as query params onto the Apps Script Web App's
+// base /exec URL, so one URL configured by the user drives both years' fetches.
+function buildAppsScriptYearUrl(base, ano, token){
+  if (!base) return "";
+  var sep = base.indexOf("?") > -1 ? "&" : "?";
+  var url = base + sep + "ano=" + ano;
+  if (token) url += "&token=" + encodeURIComponent(token);
+  return url;
+}
+
+function loadFromAppsScript(baseUrl, token){
+  loadFromGoogleSheets(
+    buildAppsScriptYearUrl(baseUrl, 2025, token),
+    buildAppsScriptYearUrl(baseUrl, 2026, token)
+  );
+}
+
 function useSnapshot(){
   state.data = window.__EMBEDDED_DATA__ || [];
   state.granular = window.__GRANULAR__ || { lojas:[], canais:[], despesas:[], despesaSubgroup:[], rows:[] };
   state.usingSnapshot = true;
-  try { localStorage.removeItem(LS_URLS_KEY); } catch(e){}
+  try { localStorage.removeItem(LS_APPSCRIPT_KEY); } catch(e){}
   computeOptions();
   resetFiltersToAll();
   updateFilterButtonCounts();
@@ -2559,18 +2574,21 @@ function useSnapshot(){
 function initDataSourcePanel(){
   document.getElementById("snapshot-date").textContent = window.__SNAPSHOT_DATE__;
   var saved = null;
-  try { saved = JSON.parse(localStorage.getItem(LS_URLS_KEY) || "null"); } catch(e){}
+  try { saved = JSON.parse(localStorage.getItem(LS_APPSCRIPT_KEY) || "null"); } catch(e){}
   if (saved){
-    document.getElementById("ds-url-2025").value = saved.url2025 || "";
-    document.getElementById("ds-url-2026").value = saved.url2026 || "";
+    document.getElementById("ds-appscript-url").value = saved.url || "";
+    document.getElementById("ds-appscript-token").value = saved.token || "";
   }
   document.getElementById("btn-load-sheets").addEventListener("click", function(){
-    loadFromGoogleSheets(document.getElementById("ds-url-2025").value.trim(), document.getElementById("ds-url-2026").value.trim());
+    var url = document.getElementById("ds-appscript-url").value.trim();
+    var token = document.getElementById("ds-appscript-token").value.trim();
+    try { localStorage.setItem(LS_APPSCRIPT_KEY, JSON.stringify({ url:url, token:token })); } catch(e){}
+    loadFromAppsScript(url, token);
   });
   document.getElementById("btn-use-snapshot").addEventListener("click", useSnapshot);
 
-  if (saved && (saved.url2025 || saved.url2026)){
-    loadFromGoogleSheets(saved.url2025, saved.url2026);
+  if (saved && saved.url){
+    loadFromAppsScript(saved.url, saved.token);
   }
 }
 
