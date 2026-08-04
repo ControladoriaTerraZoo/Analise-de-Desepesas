@@ -14,6 +14,8 @@ não é indicado para dados sigilosos.
 
 ## Manter atualizado a partir do Google Sheets
 
-Dentro do dashboard, abra "Fonte de dados & atualização via Google Sheets" e cole os links de
-CSV publicado (Arquivo → Compartilhar → Publicar na web) de cada aba (2025 e 2026) da planilha.
-O dashboard recalcula tudo no navegador a partir desses links, sem precisar gerar um novo HTML.
+Dentro do dashboard, abra "Fonte de dados & atualização via Google Sheets" e cole a URL de um
+Apps Script publicado como Web App (Extensões → Apps Script, na própria planilha) junto com o
+token configurado nele — veja `apps_script_exemplo.gs` para o código de exemplo e o passo a
+passo de implantação. O dashboard recalcula tudo no navegador a partir dessa URL, sem precisar
+gerar um novo HTML nem expor a planilha por um link público.
