@@ -65,8 +65,9 @@
   #login-screen{
     position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
     background: linear-gradient(165deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
-    z-index:100; padding:24px;
+    z-index:100; padding:24px; overflow-y:auto;
   }
+  .login-card{ margin:auto; }
   .login-card{
     width:100%; max-width:380px; background:rgba(255,255,255,0.07); backdrop-filter:blur(2px);
     border:1px solid rgba(255,255,255,0.16);
