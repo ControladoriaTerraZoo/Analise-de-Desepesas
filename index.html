@@ -174,6 +174,12 @@
   }
   details.sf .sf-label{ flex:1; }
   details.sf .cnt{ color:var(--text-secondary); font-variant-numeric:tabular-nums; font-weight:600; font-size:11.5px; }
+  details.sf .sf-chevron{
+    flex:none; display:inline-block; font-size:10px; color:var(--text-muted);
+    transition:transform .15s ease; transform:rotate(0deg);
+  }
+  details.sf[open] > summary .sf-chevron{ transform:rotate(90deg); }
+  .sidebar.collapsed .sf-chevron{ display:none; }
   .sf-body{ padding:2px 8px 14px 8px; max-height:280px; overflow:auto; }
   .sf-panel-actions{ display:flex; gap:6px; padding:2px 4px 8px; border-bottom:1px solid var(--border); margin-bottom:6px; }
   .sf-panel-actions a{ font-size:11.5px; color:var(--series-real); cursor:pointer; text-decoration:none; }
@@ -343,22 +349,22 @@
 
       <div class="sidebar-content" id="sidebar-content">
         <details class="sf" open data-kind="ano">
-          <summary><span class="sf-mono">AN</span><span class="sf-label">Ano</span><span class="cnt" data-count="ano"></span></summary>
+          <summary><span class="sf-mono">AN</span><span class="sf-label">Ano</span><span class="cnt" data-count="ano"></span><span class="sf-chevron">&#9656;</span></summary>
           <div class="sf-body" data-panel="ano"></div>
         </details>
 
         <details class="sf" open data-kind="mes">
-          <summary><span class="sf-mono">ME</span><span class="sf-label">Mês</span><span class="cnt" data-count="mes"></span></summary>
+          <summary><span class="sf-mono">ME</span><span class="sf-label">Mês</span><span class="cnt" data-count="mes"></span><span class="sf-chevron">&#9656;</span></summary>
           <div class="sf-body" data-panel="mes"></div>
         </details>
 
         <details class="sf" data-kind="loja">
-          <summary><span class="sf-mono">LJ</span><span class="sf-label">Loja</span><span class="cnt" data-count="loja"></span></summary>
+          <summary><span class="sf-mono">LJ</span><span class="sf-label">Loja</span><span class="cnt" data-count="loja"></span><span class="sf-chevron">&#9656;</span></summary>
           <div class="sf-body" data-panel="loja"></div>
         </details>
 
         <details class="sf" data-kind="canal">
-          <summary><span class="sf-mono">CN</span><span class="sf-label">Canal</span><span class="cnt" data-count="canal"></span></summary>
+          <summary><span class="sf-mono">CN</span><span class="sf-label">Canal</span><span class="cnt" data-count="canal"></span><span class="sf-chevron">&#9656;</span></summary>
           <div class="sf-body" data-panel="canal"></div>
         </details>
 
@@ -1475,13 +1481,18 @@ function renderDashboardBody(){
   renderYoYSection();
 }
 
-function bootDashboard(){
-  computeOptions();
-  resetFiltersToAll();
-  updateFilterButtonCounts();
-  renderFilterPanels();
+var chromeInitialized = false;
+
+// enterApp() -> bootDashboard() runs on every login, including a fresh login right
+// after a logout. Event listeners registered here must attach exactly once — doing
+// it unconditionally on every call stacks duplicate listeners across login cycles
+// (e.g. login → Sair → login again), and a doubled toggle handler silently cancels
+// itself out on every other click, which looks exactly like "nothing happens".
+function initChromeOnce(){
+  if (chromeInitialized) return;
+  chromeInitialized = true;
+
   initSidebarChrome();
-  renderDashboardBody();
   initDataSourcePanel();
 
   document.getElementById("btn-reset-filters").addEventListener("click", function(){
@@ -1499,6 +1510,15 @@ function bootDashboard(){
       renderTable(); renderTrendChart(); renderBarChart(); renderYoYSection();
     });
   }
+}
+
+function bootDashboard(){
+  computeOptions();
+  resetFiltersToAll();
+  updateFilterButtonCounts();
+  renderFilterPanels();
+  renderDashboardBody();
+  initChromeOnce();
 }
 
 function debounce(fn, ms){
