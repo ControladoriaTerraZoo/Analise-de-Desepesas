@@ -302,12 +302,7 @@
 
   /* ---------- Data source panel ---------- */
   /* ---------- Expense drill-down panel ---------- */
-  .expense-receita-line{
-    display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin-top:12px;
-    font-size:13px; color:var(--text-secondary);
-  }
-  .expense-receita-line strong{ color:var(--text-primary); font-size:14px; }
-  .expense-receita-line .sep{ color:var(--text-muted); margin:0 4px; }
+  .expense-receita-wrap{ margin-top:12px; }
   .expense-controls{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px; margin:12px 0 16px; }
   .expense-field{ min-width:0; flex:1 1 260px; }
   .expense-field label{ display:block; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; }
@@ -554,12 +549,13 @@
             <p>AV% de uma linha específica do SG&amp;A sobre a Receita Líquida, por loja e por mês</p>
           </div>
         </div>
-        <div class="expense-receita-line">
-          <span>Receita Líquida — Realizado</span>
-          <strong id="expense-receita-r">—</strong>
-          <span class="sep">·</span>
-          <span>Orçado</span>
-          <strong id="expense-receita-o">—</strong>
+        <div class="table-wrap expense-receita-wrap">
+          <table class="sga-table" id="expense-receita-table">
+            <thead>
+              <tr id="expense-receita-table-head"><th>Receita Líquida</th></tr>
+            </thead>
+            <tbody id="expense-receita-table-body"></tbody>
+          </table>
         </div>
         <div class="expense-controls">
           <div class="expense-field">
@@ -1608,9 +1604,24 @@ function avForMetric(metric, d, rec){
 }
 
 function renderExpenseReceitaLine(){
-  var tot = aggregateTotals(getFilteredRows());
-  document.getElementById("expense-receita-r").textContent = fmtBRL(tot.recR);
-  document.getElementById("expense-receita-o").textContent = fmtBRL(tot.recO);
+  var months = aggregateByMonth(getFilteredRows());
+  var metric = state.expenseMetric;
+
+  var thead = document.getElementById("expense-receita-table-head");
+  thead.innerHTML = "";
+  thead.appendChild(el("th", {}, ["Receita Líquida"]));
+  months.forEach(function(m){ thead.appendChild(el("th", {}, [m.label])); });
+
+  var tbody = document.getElementById("expense-receita-table-body");
+  tbody.innerHTML = "";
+  if (!months.length) return;
+
+  var cells = [ el("td", {}, []) ];
+  months.forEach(function(m){
+    var v = metric === "gap" ? (m.recR - m.recO) : (metric === "o" ? m.recO : m.recR);
+    cells.push(el("td", {}, [ el("strong", {}, [fmtBRL(v)]) ]));
+  });
+  tbody.appendChild(el("tr", { class:"receita-row" }, cells));
 }
 
 function renderExpensePanel(){
@@ -1683,12 +1694,6 @@ function renderExpensePanel(){
     return;
   }
 
-  var receitaCells = [ el("td", {}, [el("strong", {}, ["Receita Líquida"])]) ];
-  receitaMonthly.forEach(function(sum){
-    var v = metric === "gap" ? (sum.r - sum.o) : sum[metric];
-    receitaCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(v)]) ]));
-  });
-  tbody.appendChild(el("tr", { class:"receita-row" }, receitaCells));
 
   // Build the full grid first so the heat scale (darkest = largest, lightest = smallest)
   // can be normalized against the actual min/max in view, not fixed thresholds.
@@ -1788,26 +1793,6 @@ function renderExpenseRSPanel(){
     .filter(function(l){ return allowedLoja[l.idx]; })
     .sort(function(a,b){ return a.name.localeCompare(b.name, "pt-BR"); });
 
-  // Receita Líquida {r,o} per (ano,mes,loja name), summed across allowed canais
-  var receitaByKey = {};
-  getFilteredRows().forEach(function(row){
-    var key = row.ano + "|" + row.mes + "|" + row.loja;
-    if (!receitaByKey[key]) receitaByKey[key] = { r:0, o:0 };
-    if (row.receita_liquida){
-      receitaByKey[key].r += row.receita_liquida.r || 0;
-      receitaByKey[key].o += row.receita_liquida.o || 0;
-    }
-  });
-  var receitaMonthly = months.map(function(m){
-    var sum = { r:0, o:0 };
-    lojaRows.forEach(function(l){
-      var recKey = m.ano + "|" + m.mes + "|" + l.name;
-      var rec = receitaByKey[recKey];
-      if (rec){ sum.r += rec.r; sum.o += rec.o; }
-    });
-    return sum;
-  });
-
   var thead = document.getElementById("expense-rs-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
@@ -1820,13 +1805,6 @@ function renderExpenseRSPanel(){
     tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+1) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
-
-  var receitaCells = [ el("td", {}, [el("strong", {}, ["Receita Líquida"])]) ];
-  receitaMonthly.forEach(function(sum){
-    var v = metric === "gap" ? (sum.r - sum.o) : sum[metric];
-    receitaCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(v)]) ]));
-  });
-  tbody.appendChild(el("tr", { class:"receita-row" }, receitaCells));
 
   var grid = lojaRows.map(function(l){
     return months.map(function(m){
