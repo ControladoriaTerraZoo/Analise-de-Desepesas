@@ -555,7 +555,7 @@
           <div class="seg-toggle" id="expense-metric-toggle">
             <button type="button" class="seg-btn active" data-metric="r">Realizado</button>
             <button type="button" class="seg-btn" data-metric="o">Orçado</button>
-            <button type="button" class="seg-btn" data-metric="gap">Gap (p.p.)</button>
+            <button type="button" class="seg-btn" data-metric="gap">Gap</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -572,18 +572,7 @@
         <div class="panel-head">
           <div>
             <h2>Análise por Despesa (R$)</h2>
-            <p>Valores em R$ de uma linha específica do SG&amp;A, por loja e por mês</p>
-          </div>
-        </div>
-        <div class="expense-controls">
-          <div class="expense-field">
-            <label for="expense-rs-select">Despesa</label>
-            <select id="expense-rs-select"></select>
-          </div>
-          <div class="seg-toggle" id="expense-rs-metric-toggle">
-            <button type="button" class="seg-btn active" data-metric="r">Realizado</button>
-            <button type="button" class="seg-btn" data-metric="o">Orçado</button>
-            <button type="button" class="seg-btn" data-metric="gap">Gap (R$)</button>
+            <p>Valores em R$ da mesma despesa selecionada acima, por loja e por mês</p>
           </div>
         </div>
         <div class="table-wrap">
@@ -711,8 +700,7 @@ var state = {
   filters: { ano:new Set(), mes:new Set(), loja:new Set(), canal:new Set(), regiao:new Set() },
   options: { ano:[], mes:[], loja:[], canal:[], regiao:[] },
   granular: window.__GRANULAR__ || { lojas:[], canais:[], despesas:[], despesaSubgroup:[], rows:[] },
-  expenseMetric: "r",
-  expenseRSMetric: "r"
+  expenseMetric: "r"
 };
 
 /* ======================= Utils ======================= */
@@ -1563,9 +1551,13 @@ function buildDespesaOptions(select){
   });
 }
 
+// One shared despesa selector + metric toggle drives both the % and R$ panels.
 function initExpensePanel(){
   buildDespesaOptions(document.getElementById("expense-select"));
-  document.getElementById("expense-select").addEventListener("change", renderExpensePanel);
+  document.getElementById("expense-select").addEventListener("change", function(){
+    renderExpensePanel();
+    renderExpenseRSPanel();
+  });
 
   document.getElementById("expense-metric-toggle").addEventListener("click", function(ev){
     var btn = ev.target.closest(".seg-btn");
@@ -1575,20 +1567,6 @@ function initExpensePanel(){
       b.classList.toggle("active", b === btn);
     });
     renderExpensePanel();
-  });
-}
-
-function initExpenseRSPanel(){
-  buildDespesaOptions(document.getElementById("expense-rs-select"));
-  document.getElementById("expense-rs-select").addEventListener("change", renderExpenseRSPanel);
-
-  document.getElementById("expense-rs-metric-toggle").addEventListener("click", function(ev){
-    var btn = ev.target.closest(".seg-btn");
-    if (!btn) return;
-    state.expenseRSMetric = btn.getAttribute("data-metric");
-    document.querySelectorAll("#expense-rs-metric-toggle .seg-btn").forEach(function(b){
-      b.classList.toggle("active", b === btn);
-    });
     renderExpenseRSPanel();
   });
 }
@@ -1734,10 +1712,10 @@ function rsForMetric(metric, d){
 
 function renderExpenseRSPanel(){
   var g = state.granular;
-  var select = document.getElementById("expense-rs-select");
+  var select = document.getElementById("expense-select");
   if (!select.options.length) return;
   var despesaIdx = parseInt(select.value, 10);
-  var metric = state.expenseRSMetric;
+  var metric = state.expenseMetric;
 
   var allowedLoja = {}, allowedCanal = {};
   g.lojas.forEach(function(name, idx){
@@ -2247,7 +2225,6 @@ function initChromeOnce(){
   initAccountPopover();
   initDataSourcePanel();
   initExpensePanel();
-  initExpenseRSPanel();
   initExpenseModal();
 
   document.getElementById("btn-reset-filters").addEventListener("click", function(){
