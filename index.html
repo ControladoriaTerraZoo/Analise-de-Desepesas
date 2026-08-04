@@ -315,6 +315,26 @@
   .seg-btn.active{ background:var(--v2); color:#fff; }
   .seg-btn:not(.active):hover{ background:var(--chip-bg); }
 
+  /* ---------- Expense drill-down modal ---------- */
+  #expense-table tbody tr.loja-row{ cursor:pointer; }
+  #expense-table tbody tr.loja-row:hover{ background:var(--chip-bg); }
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(11,20,14,0.5); z-index:200;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-card{
+    background:var(--surface-1); border:1px solid var(--border); border-radius:14px;
+    padding:20px 22px; width:100%; max-width:640px; box-shadow:var(--shadow);
+  }
+  .modal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
+  .modal-head h3{ margin:0; font-size:15px; }
+  .modal-subtitle{ margin:2px 0 0; font-size:12px; color:var(--text-secondary); }
+  .modal-close{
+    appearance:none; border:none; background:transparent; cursor:pointer; color:var(--text-muted);
+    font-size:22px; line-height:1; padding:0; flex:none;
+  }
+  .modal-close:hover{ color:var(--text-primary); }
+
   .ds-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px; }
   @media (max-width: 760px){ .ds-grid{ grid-template-columns:1fr; } }
   .ds-field label{ font-size:11.5px; color:var(--text-secondary); display:block; margin-bottom:5px; font-weight:600; }
@@ -573,6 +593,19 @@
         Dashboard interno &middot; Análise de Despesas SG&amp;A &middot; dados em R$, AV% calculado sobre a Receita Líquida.
       </footer>
     </main>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="expense-modal-overlay">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="expense-modal-title">—</h3>
+        <p class="modal-subtitle" id="expense-modal-subtitle"></p>
+      </div>
+      <button type="button" class="modal-close" id="expense-modal-close" aria-label="Fechar">&times;</button>
+    </div>
+    <div id="expense-modal-chart"></div>
   </div>
 </div>
 
@@ -1500,6 +1533,7 @@ function renderExpensePanel(){
   var maxV = allVals.length ? Math.max.apply(null, allVals) : 1;
   var span = maxV - minV;
 
+  var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
     var cells = [ el("td", {}, [l.name]) ];
     grid[li].forEach(function(av){
@@ -1508,7 +1542,11 @@ function renderExpensePanel(){
       var td = el("td", { style: "background:" + heatColor(t) + "; color:" + heatTextColor(t) + ";" }, [fmtPct(av)]);
       cells.push(td);
     });
-    tbody.appendChild(el("tr", {}, cells));
+    var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
+    tr.addEventListener("click", function(){
+      openExpenseModal(despesaName, l.name, metric, months, grid[li]);
+    });
+    tbody.appendChild(tr);
   });
 
   var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
@@ -1524,6 +1562,140 @@ function renderExpensePanel(){
     totalCells.push(el("td", {}, [ el("strong", {}, [fmtPct(av)]) ]));
   });
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
+}
+
+/* ======================= Expense drill-down modal ======================= */
+function openExpenseModal(despesaName, lojaName, metric, months, values){
+  var overlay = document.getElementById("expense-modal-overlay");
+  document.getElementById("expense-modal-title").textContent = despesaName;
+  document.getElementById("expense-modal-subtitle").textContent =
+    lojaName + " · " + (metric === "o" ? "Orçado" : "Realizado") + " · % da Receita Líquida";
+
+  var host = document.getElementById("expense-modal-chart");
+  host.innerHTML = "";
+  renderExpenseLineChart(host, months, values);
+
+  overlay.classList.remove("hidden");
+}
+function closeExpenseModal(){
+  document.getElementById("expense-modal-overlay").classList.add("hidden");
+}
+function initExpenseModal(){
+  var overlay = document.getElementById("expense-modal-overlay");
+  document.getElementById("expense-modal-close").addEventListener("click", closeExpenseModal);
+  overlay.addEventListener("click", function(ev){
+    if (ev.target === overlay) closeExpenseModal();
+  });
+  document.addEventListener("keydown", function(ev){
+    if (ev.key === "Escape" && !overlay.classList.contains("hidden")) closeExpenseModal();
+  });
+}
+
+function renderExpenseLineChart(host, months, values){
+  if (!months.length){
+    host.appendChild(el("div",{style:"padding:40px;text-align:center;color:var(--text-muted);font-size:13px;"},["Sem dados para os filtros selecionados."]));
+    return;
+  }
+
+  var W = Math.max(host.clientWidth || 560, 320), H = 260;
+  var padL = 44, padR = 20, padT = 20, padB = 30;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+
+  var valid = values.filter(function(v){ return v !== null && v !== undefined; });
+  var maxV = valid.length ? Math.max.apply(null, valid) : 10;
+  var minV = valid.length ? Math.min(0, Math.min.apply(null, valid)) : 0;
+  var niceMax = Math.ceil((maxV * 1.2) / 5) * 5 || 10;
+  var niceMin = minV < 0 ? Math.floor((minV * 1.2) / 5) * 5 : 0;
+  var range = (niceMax - niceMin) || 1;
+
+  var n = months.length;
+  function xAt(i){ return n > 1 ? padL + (plotW * i) / (n - 1) : padL + plotW / 2; }
+  function yAt(v){ return padT + plotH - ((v - niceMin) / range) * plotH; }
+
+  var svgNS = "http://www.w3.org/2000/svg";
+  var svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", H);
+
+  var ticks = 4;
+  for (var t=0; t<=ticks; t++){
+    var v = niceMin + (range / ticks) * t;
+    var y = yAt(v);
+    var gl = document.createElementNS(svgNS,"line");
+    gl.setAttribute("x1", padL); gl.setAttribute("x2", W - padR);
+    gl.setAttribute("y1", y); gl.setAttribute("y2", y);
+    gl.setAttribute("class","grid-line");
+    svg.appendChild(gl);
+    var lbl = document.createElementNS(svgNS,"text");
+    lbl.setAttribute("x", padL - 8); lbl.setAttribute("y", y + 3);
+    lbl.setAttribute("text-anchor","end"); lbl.setAttribute("class","tick-label");
+    lbl.textContent = fmtPct(v, 1);
+    svg.appendChild(lbl);
+  }
+
+  var baseline = document.createElementNS(svgNS,"line");
+  baseline.setAttribute("x1", padL); baseline.setAttribute("x2", W - padR);
+  baseline.setAttribute("y1", yAt(0)); baseline.setAttribute("y2", yAt(0));
+  baseline.setAttribute("class","axis-line");
+  svg.appendChild(baseline);
+
+  var maxTicks = Math.max(2, Math.floor(plotW / 46) + 1);
+  var tickIdx = [];
+  if (n <= maxTicks){
+    for (var ti=0; ti<n; ti++) tickIdx.push(ti);
+  } else {
+    for (var tk=0; tk<maxTicks; tk++){
+      var idx = Math.round(tk * (n - 1) / (maxTicks - 1));
+      if (tickIdx.indexOf(idx) === -1) tickIdx.push(idx);
+    }
+  }
+  tickIdx.forEach(function(i){
+    var lbl = document.createElementNS(svgNS,"text");
+    lbl.setAttribute("x", xAt(i)); lbl.setAttribute("y", H - 8);
+    lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","tick-label");
+    lbl.textContent = months[i].label;
+    svg.appendChild(lbl);
+  });
+
+  // line — broken across gaps of missing (null) values
+  var color = css("--series-real");
+  var d = "";
+  var drawing = false;
+  values.forEach(function(v, i){
+    if (v === null || v === undefined){ drawing = false; return; }
+    var cmd = drawing ? "L" : "M";
+    d += cmd + xAt(i) + "," + yAt(v) + " ";
+    drawing = true;
+  });
+  if (d){
+    var path = document.createElementNS(svgNS, "path");
+    path.setAttribute("d", d.trim());
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", color);
+    path.setAttribute("stroke-width", "2.5");
+    path.setAttribute("stroke-linejoin", "round");
+    path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path);
+  }
+
+  values.forEach(function(v, i){
+    if (v === null || v === undefined) return;
+    var cx = xAt(i), cy = yAt(v);
+    var dot = document.createElementNS(svgNS, "circle");
+    dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", 3.5);
+    dot.setAttribute("fill", color);
+    svg.appendChild(dot);
+
+    var lbl = document.createElementNS(svgNS,"text");
+    lbl.setAttribute("x", cx); lbl.setAttribute("y", cy - 10);
+    lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","bar-value-label");
+    lbl.setAttribute("fill", color);
+    lbl.textContent = fmtPct(v, 1);
+    svg.appendChild(lbl);
+  });
+
+  host.appendChild(svg);
 }
 
 /* ======================= Data source banner + Google Sheets loader ======================= */
@@ -1762,6 +1934,7 @@ function initChromeOnce(){
   initAccountPopover();
   initDataSourcePanel();
   initExpensePanel();
+  initExpenseModal();
 
   document.getElementById("btn-reset-filters").addEventListener("click", function(){
     resetFiltersToAll();
