@@ -23,6 +23,8 @@
     --brand-dark:var(--v1); --brand-primary:var(--v2); --brand-primary-dark:#1b5e20; --brand-muted:var(--v5);
     --zoo-bright:var(--v4); --heat-min:#fdecea; --heat-max:#b71c1c;
     --heat-good-min:#E8F5E9; --heat-good-max:#1b5e20;
+    --band-1:#C8E6C9; --band-1-text:#111; --band-2:#FFF59D; --band-2-text:#111;
+    --band-3:#FFCDD2; --band-3-text:#111; --band-4:#C62828; --band-4-text:#fff;
   }
   @media (prefers-color-scheme: dark){
     :root:where(:not([data-theme="light"])){
@@ -38,7 +40,7 @@
       --chip-bg:#26241f;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
       --brand-dark:#0d1712; --brand-primary:var(--v2); --brand-primary-dark:#1e4524; --brand-muted:#8fa693;
-      --zoo-bright:#A5D6A7; --heat-min:#331c1c; --heat-max:#ef5350; --heat-good-min:#1c331f; --heat-good-max:#4caf50;
+      --zoo-bright:#A5D6A7; --heat-min:#331c1c; --heat-max:#ef5350; --heat-good-min:#1c331f; --heat-good-max:#4caf50; --band-1:#1e3a20; --band-1-text:#e8f5e9; --band-2:#4a3c0d; --band-2-text:#fff3c4; --band-3:#5c2626; --band-3-text:#ffd9d9; --band-4:#e53935; --band-4-text:#fff;
     }
   }
   :root[data-theme="dark"]{
@@ -54,7 +56,7 @@
     --chip-bg:#26241f;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
     --brand-dark:#0d1712; --brand-primary:var(--v2); --brand-primary-dark:#1e4524; --brand-muted:#8fa693;
-    --zoo-bright:#A5D6A7; --heat-min:#331c1c; --heat-max:#ef5350; --heat-good-min:#1c331f; --heat-good-max:#4caf50;
+    --zoo-bright:#A5D6A7; --heat-min:#331c1c; --heat-max:#ef5350; --heat-good-min:#1c331f; --heat-good-max:#4caf50; --band-1:#1e3a20; --band-1-text:#e8f5e9; --band-2:#4a3c0d; --band-2-text:#fff3c4; --band-3:#5c2626; --band-3-text:#ffd9d9; --band-4:#e53935; --band-4-text:#fff;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -590,6 +592,7 @@
             <h2>Análise por Despesa</h2>
             <p>AV% de uma linha específica do SG&amp;A sobre a Receita Líquida, por loja e por mês</p>
           </div>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-export-expense-pct">Baixar Excel</button>
         </div>
         <div class="table-wrap expense-receita-wrap">
           <table class="sga-table" id="expense-receita-table">
@@ -626,6 +629,7 @@
             <h2>Análise por Despesa (R$)</h2>
             <p>Valores em R$ da mesma despesa selecionada acima, por loja e por mês</p>
           </div>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-export-expense-rs">Baixar Excel</button>
         </div>
         <div class="table-wrap">
           <table class="sga-table" id="expense-rs-table">
@@ -673,6 +677,7 @@
               <h2>Loja &times; Despesa — AV%</h2>
               <p id="matrix-period-label">AV% de cada despesa sobre a Receita Líquida, por loja</p>
             </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-export-matrix">Baixar Excel (AV% e R$)</button>
           </div>
           <div class="expense-controls">
             <div class="seg-toggle" id="matrix-metric-toggle">
@@ -850,6 +855,15 @@ function heatColorDiverging(v, maxPos, maxNeg){
   }
   var tn = maxNeg > 0 ? Math.abs(v) / maxNeg : 0.5;
   return { color: heatColorGood(tn), text: heatTextColor(tn) };
+}
+// Fixed AV% health bands (not relative to what's on screen): <5% light green,
+// 5–10% light yellow, 10–15% light red, >=15% dark red.
+function heatColorBand(av){
+  if (av === null || av === undefined) return { color: "transparent", text: "var(--text-primary)" };
+  if (av < 5) return { color: css("--band-1"), text: css("--band-1-text") };
+  if (av < 10) return { color: css("--band-2"), text: css("--band-2-text") };
+  if (av < 15) return { color: css("--band-3"), text: css("--band-3-text") };
+  return { color: css("--band-4"), text: css("--band-4-text") };
 }
 function el(tag, attrs, children){
   var e = document.createElement(tag);
@@ -1791,20 +1805,15 @@ function renderExpensePanel(){
       return avForMetric(metric, despesaByKey[key], receitaByKey[recKey]);
     });
   });
-  var allVals = grid.reduce(function(acc, row){ return acc.concat(row.filter(function(v){ return v !== null; })); }, []);
   var cellStyle;
   if (metric === "gap"){
+    var allVals = grid.reduce(function(acc, row){ return acc.concat(row.filter(function(v){ return v !== null; })); }, []);
     var maxPos = allVals.length ? Math.max.apply(null, allVals.filter(function(v){ return v >= 0; }).concat(0)) : 0;
     var maxNeg = allVals.length ? Math.max.apply(null, allVals.filter(function(v){ return v < 0; }).map(Math.abs).concat(0)) : 0;
     cellStyle = function(av){ return heatColorDiverging(av, maxPos, maxNeg); };
   } else {
-    var minV = allVals.length ? Math.min.apply(null, allVals) : 0;
-    var maxV = allVals.length ? Math.max.apply(null, allVals) : 1;
-    var span = maxV - minV;
-    cellStyle = function(av){
-      var t = span > 0 ? (av - minV) / span : 0.5;
-      return { color: heatColor(t), text: heatTextColor(t) };
-    };
+    // Fixed AV% health bands, not relative to what's currently on screen.
+    cellStyle = function(av){ return heatColorBand(av); };
   }
 
   var despesaName = g.despesas[despesaIdx];
@@ -2034,13 +2043,16 @@ function renderMatrixTable(theadId, tbodyId, lojaCols, valueFn, fmt){
         var maxPos = validVals.length ? Math.max.apply(null, validVals.filter(function(v){ return v >= 0; }).concat(0)) : 0;
         var maxNeg = validVals.length ? Math.max.apply(null, validVals.filter(function(v){ return v < 0; }).map(Math.abs).concat(0)) : 0;
         cellStyle = function(v){ return heatColorDiverging(v, maxPos, maxNeg); };
+      } else if (!useAbsScale){
+        // AV% matrix: fixed health bands, not relative to what's currently on screen.
+        cellStyle = function(v){ return heatColorBand(v); };
       } else {
-        var scaleVals = useAbsScale ? validVals.map(Math.abs) : validVals;
+        var scaleVals = validVals.map(Math.abs);
         var minV = scaleVals.length ? Math.min.apply(null, scaleVals) : 0;
         var maxV = scaleVals.length ? Math.max.apply(null, scaleVals) : 1;
         var span = maxV - minV;
         cellStyle = function(v){
-          var t = span > 0 ? ((useAbsScale ? Math.abs(v) : v) - minV) / span : 0.5;
+          var t = span > 0 ? (Math.abs(v) - minV) / span : 0.5;
           return { color: heatColor(t), text: heatTextColor(t) };
         };
       }
@@ -2491,6 +2503,182 @@ function exportCSV(){
   URL.revokeObjectURL(url);
 }
 
+/* ======================= Minimal XLSX export (no external libraries) ======================= */
+// Builds a valid, uncompressed ("stored") .xlsx from {name, rows} sheets, where every
+// cell is an inline string matching exactly what's shown on screen. This sidesteps a
+// sharedStrings table and cell number formats entirely, keeping a from-scratch ZIP+XML
+// writer small while still opening cleanly in Excel/LibreOffice/Google Sheets.
+var CRC32_TABLE = (function(){
+  var table = [];
+  for (var n = 0; n < 256; n++){
+    var c = n;
+    for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+function crc32(bytes){
+  var crc = 0xFFFFFFFF;
+  for (var i = 0; i < bytes.length; i++) crc = CRC32_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function xmlEscape(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function xlsxColName(idx){
+  var s = "", n = idx + 1;
+  while (n > 0){
+    var rem = (n - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+function xlsxSheetXml(rows){
+  var out = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'];
+  rows.forEach(function(row, ri){
+    out.push('<row r="' + (ri + 1) + '">');
+    row.forEach(function(val, ci){
+      if (val === null || val === undefined || val === "") return;
+      var ref = xlsxColName(ci) + (ri + 1);
+      out.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEscape(val) + '</t></is></c>');
+    });
+    out.push('</row>');
+  });
+  out.push('</sheetData></worksheet>');
+  return out.join("");
+}
+function zipStoreBytes(files){
+  function u16(v){ return [v & 0xFF, (v >>> 8) & 0xFF]; }
+  function u32(v){ return [v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF]; }
+  var localChunks = [], centralChunks = [], offset = 0;
+  files.forEach(function(f){
+    var nameBytes = new TextEncoder().encode(f.name);
+    var data = f.data;
+    var crc = crc32(data);
+    var localHeader = [].concat(
+      [0x50,0x4b,0x03,0x04], u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0)
+    );
+    var localEntry = new Uint8Array(localHeader.length + nameBytes.length + data.length);
+    localEntry.set(localHeader, 0);
+    localEntry.set(nameBytes, localHeader.length);
+    localEntry.set(data, localHeader.length + nameBytes.length);
+    localChunks.push(localEntry);
+
+    var centralHeader = [].concat(
+      [0x50,0x4b,0x01,0x02], u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length),
+      u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset)
+    );
+    var centralEntry = new Uint8Array(centralHeader.length + nameBytes.length);
+    centralEntry.set(centralHeader, 0);
+    centralEntry.set(nameBytes, centralHeader.length);
+    centralChunks.push(centralEntry);
+
+    offset += localEntry.length;
+  });
+  var centralStart = offset;
+  var centralSize = centralChunks.reduce(function(s, c){ return s + c.length; }, 0);
+  var eocd = new Uint8Array([].concat(
+    [0x50,0x4b,0x05,0x06], u16(0), u16(0), u16(files.length), u16(files.length),
+    u32(centralSize), u32(centralStart), u16(0)
+  ));
+  var all = localChunks.concat(centralChunks, [eocd]);
+  var total = all.reduce(function(s, c){ return s + c.length; }, 0);
+  var out = new Uint8Array(total);
+  var pos = 0;
+  all.forEach(function(c){ out.set(c, pos); pos += c.length; });
+  return out;
+}
+function downloadXlsx(filename, sheets){
+  var enc = new TextEncoder();
+  var contentTypesOverrides = sheets.map(function(_, i){
+    return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+  }).join("");
+  var contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    contentTypesOverrides + '</Types>';
+  var rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    '</Relationships>';
+  var sheetsTag = sheets.map(function(s, i){
+    return '<sheet name="' + xmlEscape(s.name.slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>';
+  }).join("");
+  var workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets>' + sheetsTag + '</sheets></workbook>';
+  var workbookRelsTag = sheets.map(function(s, i){
+    return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+  }).join("") + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
+  var workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + workbookRelsTag + '</Relationships>';
+  var stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    '</styleSheet>';
+
+  var files = [
+    { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
+    { name: "_rels/.rels", data: enc.encode(rootRels) },
+    { name: "xl/workbook.xml", data: enc.encode(workbookXml) },
+    { name: "xl/_rels/workbook.xml.rels", data: enc.encode(workbookRels) },
+    { name: "xl/styles.xml", data: enc.encode(stylesXml) }
+  ];
+  sheets.forEach(function(s, i){
+    files.push({ name: "xl/worksheets/sheet" + (i + 1) + ".xml", data: enc.encode(xlsxSheetXml(s.rows)) });
+  });
+
+  var zipBytes = zipStoreBytes(files);
+  var blob = new Blob([zipBytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+function tableToRows(tableEl){
+  var rows = [];
+  rows.push(Array.prototype.map.call(tableEl.querySelectorAll("thead tr th"), function(th){
+    return th.textContent.trim();
+  }));
+  tableEl.querySelectorAll("tbody tr").forEach(function(tr){
+    rows.push(Array.prototype.map.call(tr.querySelectorAll("td"), function(td){
+      return td.textContent.trim();
+    }));
+  });
+  return rows;
+}
+function initXlsxExportButtons(){
+  document.getElementById("btn-export-expense-pct").addEventListener("click", function(){
+    downloadXlsx("analise_despesa_percentual.xlsx", [
+      { name: "AV%", rows: tableToRows(document.getElementById("expense-table")) }
+    ]);
+  });
+  document.getElementById("btn-export-expense-rs").addEventListener("click", function(){
+    downloadXlsx("analise_despesa_reais.xlsx", [
+      { name: "R$", rows: tableToRows(document.getElementById("expense-rs-table")) }
+    ]);
+  });
+  document.getElementById("btn-export-matrix").addEventListener("click", function(){
+    downloadXlsx("loja_x_despesa.xlsx", [
+      { name: "AV%", rows: tableToRows(document.getElementById("matrix-pct-table")) },
+      { name: "R$", rows: tableToRows(document.getElementById("matrix-rs-table")) }
+    ]);
+  });
+}
+
 /* ======================= Boot ======================= */
 function renderDashboardBody(){
   renderKPIs();
@@ -2521,6 +2709,7 @@ function initChromeOnce(){
   initExpenseModal();
   initLojaDespesaView();
   initViewTabs();
+  initXlsxExportButtons();
 
   document.getElementById("btn-reset-filters").addEventListener("click", function(){
     resetFiltersToAll();
