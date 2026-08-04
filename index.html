@@ -989,6 +989,27 @@ function computeYoYLines(rows, years){
 
 /* ======================= Multi-select filter UI ======================= */
 var MS_LABELS = { ano:"Ano", mes:"Mês", loja:"Loja", canal:"Canal" };
+
+// Loja, Canal and Região all gate results on the same rows (a store belongs to a
+// channel and a region), so leaving one empty silently zeroes out the others. When
+// one of these three goes from empty to non-empty, auto-fill any OTHER one that is
+// currently empty — but never override an already-meaningful (non-empty) selection,
+// so a specific loja + a specific canal can still be combined deliberately.
+var LOCATION_FACETS = ["loja", "canal", "regiao"];
+function fillEmptyRelatedFacets(changedKind){
+  if (LOCATION_FACETS.indexOf(changedKind) === -1) return false;
+  if (state.filters[changedKind].size === 0) return false;
+  var filled = false;
+  LOCATION_FACETS.forEach(function(other){
+    if (other === changedKind) return;
+    if (state.filters[other].size === 0){
+      state.filters[other] = new Set(state.options[other]);
+      filled = true;
+    }
+  });
+  return filled;
+}
+
 function optionLabel(kind, v){
   if (kind === "mes") return MONTH_NAMES[v];
   return String(v);
@@ -999,7 +1020,12 @@ function renderFilterPanels(){
     var panel = document.querySelector('[data-panel="' + kind + '"]');
     panel.innerHTML = "";
     var actions = el("div", { class:"sf-panel-actions" }, [
-      el("a", { onclick:function(ev){ ev.stopPropagation(); state.options[kind].forEach(function(v){ state.filters[kind].add(v); }); refreshAll(); } }, ["Todos"]),
+      el("a", { onclick:function(ev){
+        ev.stopPropagation();
+        state.options[kind].forEach(function(v){ state.filters[kind].add(v); });
+        fillEmptyRelatedFacets(kind);
+        refreshAll();
+      } }, ["Todos"]),
       el("a", { onclick:function(ev){ ev.stopPropagation(); state.filters[kind].clear(); refreshAll(); } }, ["Nenhum"])
     ]);
     panel.appendChild(actions);
@@ -1010,8 +1036,12 @@ function renderFilterPanels(){
       input.checked = checked;
       input.addEventListener("change", function(){
         if (input.checked) state.filters[kind].add(v); else state.filters[kind].delete(v);
-        updateFilterButtonCounts();
-        renderDashboardBody();
+        if (input.checked && fillEmptyRelatedFacets(kind)){
+          refreshAll();
+        } else {
+          updateFilterButtonCounts();
+          renderDashboardBody();
+        }
       });
       var label = el("label", { for:id }, [optionLabel(kind, v)]);
       panel.appendChild(el("div", { class:"sf-opt" }, [input, label]));
