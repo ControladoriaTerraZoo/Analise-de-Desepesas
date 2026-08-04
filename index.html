@@ -19,6 +19,7 @@
     --focus:var(--v2);
     --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
     --brand-dark:#16281d; --brand-primary:var(--v2); --brand-primary-dark:#1b5e20; --brand-muted:#7e9683;
+    --zoo-bright:#7ed957; --heat-min:#eaf6ea; --heat-max:#1b5e20;
   }
   @media (prefers-color-scheme: dark){
     :root:where(:not([data-theme="light"])){
@@ -34,6 +35,7 @@
       --chip-bg:#26241f;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
       --brand-dark:#0d1712; --brand-primary:var(--v2); --brand-primary-dark:#1e4524; --brand-muted:#8fa693;
+      --zoo-bright:#7ed957; --heat-min:#1c331f; --heat-max:#4caf50;
     }
   }
   :root[data-theme="dark"]{
@@ -49,6 +51,7 @@
     --chip-bg:#26241f;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
     --brand-dark:#0d1712; --brand-primary:var(--v2); --brand-primary-dark:#1e4524; --brand-muted:#8fa693;
+    --zoo-bright:#7ed957; --heat-min:#1c331f; --heat-max:#4caf50;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -114,27 +117,30 @@
   .tz-tagline{ font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--text-muted); margin-top:3px; }
   .login-card .tz-wordmark{ font-size:24px; }
   .login-card .tz-wordmark .tz-terra{ color:#fff; }
-  .login-card .tz-wordmark .tz-zoo{ color:rgba(255,255,255,0.6); }
+  .login-card .tz-wordmark .tz-zoo{ color:var(--zoo-bright); }
   .login-card .tz-tagline{ color:rgba(255,255,255,0.6); }
 
   /* ---------- App shell ---------- */
   #app{ display:none; }
   .app-topbar{
-    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    display:flex; align-items:center; gap:16px;
     padding:12px 24px; background:var(--brand-dark); position:sticky; top:0; z-index:30;
   }
   .app-topbar .tz-wordmark .tz-terra{ color:#fff; }
-  .app-topbar .tz-wordmark .tz-zoo{ color:var(--brand-muted); }
+  .app-topbar .tz-wordmark .tz-zoo{ color:var(--zoo-bright); }
   .app-topbar .tz-tagline{ color:rgba(255,255,255,0.55); }
-  .topbar-actions{ display:flex; align-items:center; gap:10px; }
-  .user-chip{
-    display:flex; align-items:center; gap:8px; font-size:12.5px; color:rgba(255,255,255,0.85);
-    background:rgba(255,255,255,0.1); border-radius:999px; padding:6px 12px 6px 6px;
+  .avatar{
+    width:26px; height:26px; border-radius:50%; background:var(--series-real); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex:none;
   }
-  .user-chip .avatar{
-    width:22px; height:22px; border-radius:50%; background:var(--series-real); color:#fff;
-    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
+  .sidebar-user{
+    display:flex; align-items:center; gap:10px; padding:14px 16px; border-top:1px solid var(--border);
+    margin-top:auto;
   }
+  .sidebar-user-name{ flex:1; font-size:13px; font-weight:600; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sidebar.collapsed .sidebar-user{ flex-direction:column; padding:14px 6px; gap:8px; }
+  .sidebar.collapsed .sidebar-user-name,
+  .sidebar.collapsed .sidebar-user .btn{ display:none; }
   .app-topbar .btn-ghost{ color:rgba(255,255,255,0.85); border-color:rgba(255,255,255,0.25); }
   .app-topbar .btn-ghost:hover{ background:rgba(255,255,255,0.12); }
 
@@ -142,6 +148,7 @@
 
   /* ---------- Sidebar filters ---------- */
   .sidebar{
+    display:flex; flex-direction:column;
     flex:none; width:250px; background:var(--surface-1); border-right:1px solid var(--border);
     position:sticky; top:57px; align-self:flex-start; max-height:calc(100vh - 57px); overflow-y:auto;
     transition:width .16s ease;
@@ -350,10 +357,6 @@
       <div class="tz-wordmark"><span class="tz-terra">terra</span><span class="tz-zoo">ZOO</span></div>
       <div class="tz-tagline">Análise de Despesas &middot; SG&amp;A</div>
     </div>
-    <div class="topbar-actions">
-      <span class="user-chip"><span class="avatar" id="user-avatar">?</span><span id="user-name">—</span></span>
-      <button class="btn btn-ghost btn-sm" id="btn-logout">Sair</button>
-    </div>
   </header>
 
   <div class="app-body">
@@ -388,6 +391,12 @@
           <button class="btn btn-ghost btn-sm" id="btn-reset-filters">Limpar filtros</button>
           <button class="btn btn-ghost btn-sm" id="btn-export-csv">Exportar CSV</button>
         </div>
+      </div>
+
+      <div class="sidebar-user">
+        <span class="avatar" id="user-avatar">?</span>
+        <span id="user-name" class="sidebar-user-name">—</span>
+        <button class="btn btn-ghost btn-sm" id="btn-logout">Sair</button>
       </div>
     </aside>
 
@@ -598,6 +607,19 @@ function fmtPP(n, digits){
 function css(varName){
   return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
 }
+function hexToRgb(hex){
+  hex = hex.replace("#", "");
+  return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
+}
+// Sequential heat scale: t=0 -> lightest green (smallest value), t=1 -> darkest green (largest value).
+function heatColor(t){
+  var a = hexToRgb(css("--heat-min")), b = hexToRgb(css("--heat-max"));
+  var rgb = a.map(function(c, i){ return Math.round(c + (b[i] - c) * t); });
+  return "rgb(" + rgb.join(",") + ")";
+}
+function heatTextColor(t){
+  return t > 0.55 ? "#ffffff" : "var(--text-primary)";
+}
 function isDark(){
   var explicit = document.documentElement.getAttribute("data-theme");
   if (explicit === "dark") return true;
@@ -676,7 +698,9 @@ function enterApp(user){
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app").style.display = "block";
   var name = user.nome || user.email || "Usuário";
-  document.getElementById("user-name").textContent = name;
+  var nameEl = document.getElementById("user-name");
+  nameEl.textContent = name;
+  nameEl.title = name;
   document.getElementById("user-avatar").textContent = name.trim().charAt(0).toUpperCase();
   bootDashboard();
 }
@@ -1394,15 +1418,29 @@ function renderExpensePanel(){
     return;
   }
 
-  lojaRows.forEach(function(l){
-    var cells = [ el("td", {}, [l.name]) ];
-    months.forEach(function(m){
+  // Build the full grid first so the heat scale (darkest = largest, lightest = smallest)
+  // can be normalized against the actual min/max in view, not fixed thresholds.
+  var grid = lojaRows.map(function(l){
+    return months.map(function(m){
       var key = m.ano + "|" + m.mes + "|" + l.idx;
       var dVal = despesaByKey[key];
       var recKey = m.ano + "|" + m.mes + "|" + l.name;
       var rec = receitaByKey[recKey];
-      var av = (dVal !== undefined && rec > 0) ? Math.abs(dVal) / rec * 100 : null;
-      cells.push(el("td", {}, [fmtPct(av)]));
+      return (dVal !== undefined && rec > 0) ? Math.abs(dVal) / rec * 100 : null;
+    });
+  });
+  var allVals = grid.reduce(function(acc, row){ return acc.concat(row.filter(function(v){ return v !== null; })); }, []);
+  var minV = allVals.length ? Math.min.apply(null, allVals) : 0;
+  var maxV = allVals.length ? Math.max.apply(null, allVals) : 1;
+  var span = maxV - minV;
+
+  lojaRows.forEach(function(l, li){
+    var cells = [ el("td", {}, [l.name]) ];
+    grid[li].forEach(function(av){
+      if (av === null){ cells.push(el("td", {}, [fmtPct(av)])); return; }
+      var t = span > 0 ? (av - minV) / span : 0.5;
+      var td = el("td", { style: "background:" + heatColor(t) + "; color:" + heatTextColor(t) + ";" }, [fmtPct(av)]);
+      cells.push(td);
     });
     tbody.appendChild(el("tr", {}, cells));
   });
