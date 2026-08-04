@@ -275,7 +275,7 @@
   .bar-value-label{ font-size:8.5px; font-weight:400; font-variant-numeric:tabular-nums; }
 
   .tooltip{
-    position:fixed; pointer-events:none; z-index:50; background:var(--surface-2); border:1px solid var(--border);
+    position:fixed; pointer-events:none; z-index:250; background:var(--surface-2); border:1px solid var(--border);
     border-radius:10px; padding:8px 10px; font-size:12px; box-shadow:var(--shadow); opacity:0; transition:opacity .08s ease;
     max-width:240px;
   }
@@ -1545,7 +1545,12 @@ function renderExpensePanel(){
     });
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
-      openExpenseModal(despesaName, l.name, metric, months, grid[li]);
+      var raw = months.map(function(m){
+        var key = m.ano + "|" + m.mes + "|" + l.idx;
+        var recKey = m.ano + "|" + m.mes + "|" + l.name;
+        return { despesa: despesaByKey[key], receita: receitaByKey[recKey] };
+      });
+      openExpenseModal(despesaName, l.name, metric, months, grid[li], raw);
     });
     tbody.appendChild(tr);
   });
@@ -1566,7 +1571,7 @@ function renderExpensePanel(){
 }
 
 /* ======================= Expense drill-down modal ======================= */
-function openExpenseModal(despesaName, lojaName, metric, months, values){
+function openExpenseModal(despesaName, lojaName, metric, months, values, raw){
   var overlay = document.getElementById("expense-modal-overlay");
   document.getElementById("expense-modal-title").textContent = despesaName;
   document.getElementById("expense-modal-subtitle").textContent =
@@ -1574,7 +1579,7 @@ function openExpenseModal(despesaName, lojaName, metric, months, values){
 
   var host = document.getElementById("expense-modal-chart");
   host.innerHTML = "";
-  renderExpenseLineChart(host, months, values);
+  renderExpenseLineChart(host, months, values, raw);
 
   overlay.classList.remove("hidden");
 }
@@ -1592,7 +1597,7 @@ function initExpenseModal(){
   });
 }
 
-function renderExpenseLineChart(host, months, values){
+function renderExpenseLineChart(host, months, values, raw){
   if (!months.length){
     host.appendChild(el("div",{style:"padding:40px;text-align:center;color:var(--text-muted);font-size:13px;"},["Sem dados para os filtros selecionados."]));
     return;
@@ -1694,6 +1699,25 @@ function renderExpenseLineChart(host, months, values){
     lbl.setAttribute("fill", color);
     lbl.textContent = fmtPct(v, 1);
     svg.appendChild(lbl);
+  });
+
+  // hover hit-areas — one per month, showing despesa + receita líquida in R$
+  var hitW = n > 1 ? plotW / (n - 1) : plotW;
+  months.forEach(function(m, i){
+    var r = raw && raw[i] ? raw[i] : {};
+    var hit = document.createElementNS(svgNS, "rect");
+    hit.setAttribute("x", xAt(i) - hitW/2); hit.setAttribute("y", padT);
+    hit.setAttribute("width", hitW); hit.setAttribute("height", plotH);
+    hit.setAttribute("fill", "transparent");
+    hit.addEventListener("mousemove", function(ev){
+      var html = '<div class="t-title">' + m.label + '</div>' +
+        '<div class="t-row"><span>Despesa</span><strong>' + fmtBRL(r.despesa) + '</strong></div>' +
+        '<div class="t-row"><span>Receita Líquida</span><strong>' + fmtBRL(r.receita) + '</strong></div>' +
+        '<div class="t-row"><span>AV%</span><strong>' + fmtPct(values[i]) + '</strong></div>';
+      showTooltip(ev.clientX, ev.clientY, html);
+    });
+    hit.addEventListener("mouseleave", hideTooltip);
+    svg.appendChild(hit);
   });
 
   host.appendChild(svg);
