@@ -7,19 +7,21 @@
 <style>
   :root{
     color-scheme: light;
-    --surface-1:#fcfcfb; --page:#eef5ec; --surface-2:#ffffff;
-    --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
-    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --v2:#2e7d32;
+    --v1:#1a2e1f; --v2:#2E7D32; --v3:#4CAF50; --v4:#A5D6A7; --v5:#b2dfc4; --v6:#E8F5E9;
+    --txt:#111; --muted:#555; --borda:#C8E6C9; --fundo:#f4f8f5; --danger:#d32f2f;
+
+    --surface-1:#fcfcfb; --page:var(--fundo); --surface-2:#ffffff;
+    --text-primary:var(--txt); --text-secondary:var(--muted); --text-muted:var(--muted);
+    --grid:var(--borda); --axis:var(--v5); --border:var(--borda);
     --series-real:var(--v2); --series-orc:#d9762a;
     --yoy-a:#2a78d6; --yoy-b:var(--v2);
-    --good:#0ca30c; --critical:#d03b3b; --warning:#fab219;
-    --good-bg:rgba(12,163,12,0.10); --critical-bg:rgba(208,59,59,0.10);
-    --chip-bg:#f0efec;
+    --good:#0ca30c; --critical:var(--danger); --warning:#fab219;
+    --good-bg:rgba(12,163,12,0.10); --critical-bg:rgba(211,47,47,0.10);
+    --chip-bg:var(--v6);
     --focus:var(--v2);
     --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
-    --brand-dark:#16281d; --brand-primary:var(--v2); --brand-primary-dark:#1b5e20; --brand-muted:#7e9683;
-    --zoo-bright:#7ed957; --heat-min:#eaf6ea; --heat-max:#1b5e20;
+    --brand-dark:var(--v1); --brand-primary:var(--v2); --brand-primary-dark:#1b5e20; --brand-muted:var(--v5);
+    --zoo-bright:var(--v4); --heat-min:var(--v6); --heat-max:#1b5e20;
   }
   @media (prefers-color-scheme: dark){
     :root:where(:not([data-theme="light"])){
@@ -27,7 +29,7 @@
       --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#221f1f;
       --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
       --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
-      --v2:#39944a;
+      --v2:#4CAF50;
       --series-real:var(--v2); --series-orc:#d95926;
       --yoy-a:#3987e5; --yoy-b:var(--v2);
       --good:#0ca30c; --critical:#e66767; --warning:#c98500;
@@ -35,7 +37,7 @@
       --chip-bg:#26241f;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
       --brand-dark:#0d1712; --brand-primary:var(--v2); --brand-primary-dark:#1e4524; --brand-muted:#8fa693;
-      --zoo-bright:#7ed957; --heat-min:#1c331f; --heat-max:#4caf50;
+      --zoo-bright:#A5D6A7; --heat-min:#1c331f; --heat-max:#4caf50;
     }
   }
   :root[data-theme="dark"]{
@@ -43,7 +45,7 @@
     --surface-1:#1a1a19; --page:#0d0d0d; --surface-2:#221f1f;
     --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
     --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
-    --v2:#39944a;
+    --v2:#4CAF50;
     --series-real:var(--v2); --series-orc:#d95926;
     --yoy-a:#3987e5; --yoy-b:var(--v2);
     --good:#0ca30c; --critical:#e66767; --warning:#c98500;
@@ -51,7 +53,7 @@
     --chip-bg:#26241f;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
     --brand-dark:#0d1712; --brand-primary:var(--v2); --brand-primary-dark:#1e4524; --brand-muted:#8fa693;
-    --zoo-bright:#7ed957; --heat-min:#1c331f; --heat-max:#4caf50;
+    --zoo-bright:#A5D6A7; --heat-min:#1c331f; --heat-max:#4caf50;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -128,7 +130,8 @@
   }
   .app-topbar .tz-wordmark .tz-terra{ color:#fff; }
   .app-topbar .tz-wordmark .tz-zoo{ color:var(--zoo-bright); }
-  .app-topbar .tz-tagline{ color:rgba(255,255,255,0.55); }
+  .app-topbar .tz-tagline{ color:rgba(255,255,255,0.55); margin-top:0; margin-bottom:3px; }
+  .app-topbar .tz-wordmark{ margin-top:0; }
   .avatar{
     width:26px; height:26px; border-radius:50%; background:var(--series-real); color:#fff;
     display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex:none;
@@ -376,8 +379,8 @@
 <div id="app">
   <header class="app-topbar">
     <div class="app-topbar-brand">
-      <div class="tz-wordmark"><span class="tz-terra">terra</span><span class="tz-zoo">ZOO</span></div>
       <div class="tz-tagline">Análise de Despesas &middot; SG&amp;A</div>
+      <div class="tz-wordmark"><span class="tz-terra">terra</span><span class="tz-zoo">ZOO</span></div>
     </div>
   </header>
 
