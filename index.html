@@ -2525,6 +2525,17 @@ function crc32(bytes){
 function xmlEscape(s){
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+// Parses a getComputedStyle() rgb()/rgba() string into a 6-hex-digit color, or null
+// for transparent/unparseable input (so uncolored cells stay uncolored in the export).
+function colorToHex(colorStr){
+  if (!colorStr) return null;
+  var m = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+  if (!m) return null;
+  if (m[4] !== undefined && parseFloat(m[4]) === 0) return null;
+  var r = parseInt(m[1],10), g = parseInt(m[2],10), b = parseInt(m[3],10);
+  function h(n){ return n.toString(16).padStart(2,"0").toUpperCase(); }
+  return h(r)+h(g)+h(b);
+}
 function xlsxColName(idx){
   var s = "", n = idx + 1;
   while (n > 0){
@@ -2534,15 +2545,20 @@ function xlsxColName(idx){
   }
   return s;
 }
-function xlsxSheetXml(rows){
+// rows: array of arrays of cell objects {text, bg?, fg?} (bg/fg are 6-hex-digit strings or absent).
+// xfIndexFor(bg, fg) resolves/registers the pair into the workbook's shared cellXfs and
+// returns its index (0 = no styling), so identical color pairs share a single style.
+function xlsxSheetXmlStyled(rows, xfIndexFor){
   var out = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'];
   rows.forEach(function(row, ri){
     out.push('<row r="' + (ri + 1) + '">');
-    row.forEach(function(val, ci){
-      if (val === null || val === undefined || val === "") return;
+    row.forEach(function(cell, ci){
+      if (!cell || cell.text === null || cell.text === undefined || cell.text === "") return;
       var ref = xlsxColName(ci) + (ri + 1);
-      out.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEscape(val) + '</t></is></c>');
+      var xfIdx = xfIndexFor(cell.bg, cell.fg);
+      var sAttr = xfIdx ? ' s="' + xfIdx + '"' : '';
+      out.push('<c r="' + ref + '"' + sAttr + ' t="inlineStr"><is><t xml:space="preserve">' + xmlEscape(cell.text) + '</t></is></c>');
     });
     out.push('</row>');
   });
@@ -2619,26 +2635,65 @@ function downloadXlsx(filename, sheets){
   }).join("") + '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
   var workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + workbookRelsTag + '</Relationships>';
-  var stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>' +
-    '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
-    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-    '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
-    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
-    '</styleSheet>';
+  // Dynamic style registry: dedups (fg,bg) pairs across the whole workbook into shared
+  // <font>/<fill>/<xf> entries. OOXML requires fills[0]=none and fills[1]=gray125 before
+  // any user fill, and cellXfs[0] must be the default (unstyled) style at index 0.
+  var fontList = ['<font><sz val="11"/><name val="Calibri"/></font>'];
+  var fontIndexByColor = { "": 0 };
+  var fillList = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'];
+  var fillIndexByColor = {};
+  var cellXfList = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'];
+  var xfIndexByKey = { "|": 0 };
+  function fontIndexFor(fg){
+    if (!fg) return 0;
+    if (fontIndexByColor[fg] !== undefined) return fontIndexByColor[fg];
+    var idx = fontList.length;
+    fontList.push('<font><sz val="11"/><name val="Calibri"/><color rgb="FF' + fg + '"/></font>');
+    fontIndexByColor[fg] = idx;
+    return idx;
+  }
+  function fillIndexFor(bg){
+    if (!bg) return 0;
+    if (fillIndexByColor[bg] !== undefined) return fillIndexByColor[bg];
+    var idx = fillList.length;
+    fillList.push('<fill><patternFill patternType="solid"><fgColor rgb="FF' + bg + '"/><bgColor indexed="64"/></patternFill></fill>');
+    fillIndexByColor[bg] = idx;
+    return idx;
+  }
+  function xfIndexFor(bg, fg){
+    var key = (bg || "") + "|" + (fg || "");
+    if (xfIndexByKey[key] !== undefined) return xfIndexByKey[key];
+    var fontIdx = fontIndexFor(fg), fillIdx = fillIndexFor(bg);
+    var idx = cellXfList.length;
+    var applyFont = fontIdx ? ' applyFont="1"' : '';
+    var applyFill = fillIdx ? ' applyFill="1"' : '';
+    cellXfList.push('<xf numFmtId="0" fontId="' + fontIdx + '" fillId="' + fillIdx + '" borderId="0" xfId="0"' + applyFont + applyFill + '/>');
+    xfIndexByKey[key] = idx;
+    return idx;
+  }
 
   var files = [
     { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
     { name: "_rels/.rels", data: enc.encode(rootRels) },
     { name: "xl/workbook.xml", data: enc.encode(workbookXml) },
-    { name: "xl/_rels/workbook.xml.rels", data: enc.encode(workbookRels) },
-    { name: "xl/styles.xml", data: enc.encode(stylesXml) }
+    { name: "xl/_rels/workbook.xml.rels", data: enc.encode(workbookRels) }
   ];
-  sheets.forEach(function(s, i){
-    files.push({ name: "xl/worksheets/sheet" + (i + 1) + ".xml", data: enc.encode(xlsxSheetXml(s.rows)) });
+  var sheetFiles = sheets.map(function(s, i){
+    return { name: "xl/worksheets/sheet" + (i + 1) + ".xml", data: xlsxSheetXmlStyled(s.rows, xfIndexFor) };
   });
+  // Style registry is only complete once every sheet's cells have registered their
+  // colors, so build styles.xml AFTER walking all sheets, then encode everything.
+  var stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="' + fontList.length + '">' + fontList.join("") + '</fonts>' +
+    '<fills count="' + fillList.length + '">' + fillList.join("") + '</fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="' + cellXfList.length + '">' + cellXfList.join("") + '</cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    '</styleSheet>';
+  files.push({ name: "xl/styles.xml", data: enc.encode(stylesXml) });
+  sheetFiles.forEach(function(f){ files.push({ name: f.name, data: enc.encode(f.data) }); });
 
   var zipBytes = zipStoreBytes(files);
   var blob = new Blob([zipBytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -2648,14 +2703,25 @@ function downloadXlsx(filename, sheets){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 }
-function tableToRows(tableEl){
+// Reads back each td's actually-rendered heat color via getComputedStyle so the
+// export exactly matches whatever color scheme is active on screen (fixed AV% bands,
+// diverging Gap, or the relative R$ scale) without duplicating any color logic here.
+// Only cells the render functions explicitly heat-colored (inline style) get bg/fg —
+// plain cells (names, "—", Total/receita rows) are left uncolored, same as on screen.
+function tableToStyledRows(tableEl){
   var rows = [];
   rows.push(Array.prototype.map.call(tableEl.querySelectorAll("thead tr th"), function(th){
-    return th.textContent.trim();
+    return { text: th.textContent.trim() };
   }));
   tableEl.querySelectorAll("tbody tr").forEach(function(tr){
     rows.push(Array.prototype.map.call(tr.querySelectorAll("td"), function(td){
-      return td.textContent.trim();
+      var cell = { text: td.textContent.trim() };
+      if (td.style.background){
+        var cs = getComputedStyle(td);
+        cell.bg = colorToHex(cs.backgroundColor);
+        cell.fg = colorToHex(cs.color);
+      }
+      return cell;
     }));
   });
   return rows;
@@ -2663,18 +2729,18 @@ function tableToRows(tableEl){
 function initXlsxExportButtons(){
   document.getElementById("btn-export-expense-pct").addEventListener("click", function(){
     downloadXlsx("analise_despesa_percentual.xlsx", [
-      { name: "AV%", rows: tableToRows(document.getElementById("expense-table")) }
+      { name: "AV%", rows: tableToStyledRows(document.getElementById("expense-table")) }
     ]);
   });
   document.getElementById("btn-export-expense-rs").addEventListener("click", function(){
     downloadXlsx("analise_despesa_reais.xlsx", [
-      { name: "R$", rows: tableToRows(document.getElementById("expense-rs-table")) }
+      { name: "R$", rows: tableToStyledRows(document.getElementById("expense-rs-table")) }
     ]);
   });
   document.getElementById("btn-export-matrix").addEventListener("click", function(){
     downloadXlsx("loja_x_despesa.xlsx", [
-      { name: "AV%", rows: tableToRows(document.getElementById("matrix-pct-table")) },
-      { name: "R$", rows: tableToRows(document.getElementById("matrix-rs-table")) }
+      { name: "AV%", rows: tableToStyledRows(document.getElementById("matrix-pct-table")) },
+      { name: "R$", rows: tableToStyledRows(document.getElementById("matrix-rs-table")) }
     ]);
   });
 }
