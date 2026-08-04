@@ -128,6 +128,7 @@
   .app-topbar{
     display:flex; align-items:center; gap:16px;
     padding:12px 24px; background:var(--brand-dark); position:sticky; top:0; z-index:30;
+    border: 1px solid var(--borda); /* #C8E6C9 */
   }
   .app-topbar .tz-wordmark .tz-terra{ color:#fff; }
   .app-topbar .tz-wordmark .tz-zoo{ color:var(--zoo-bright); }
@@ -1793,11 +1794,18 @@ function renderExpenseLineChart(host, months, values, raw, metric, unit){
   var padL = 44, padR = 20, padT = 20, padB = 30;
   var plotW = W - padL - padR, plotH = H - padT - padB;
 
+  // Domain always anchors at 0 (so the baseline is meaningful) and pads 15% beyond
+  // the data extremes. Padding must ADD headroom regardless of sign — multiplying a
+  // negative max by >1 (the old approach) makes it MORE negative, pulling the axis
+  // ceiling below the actual data and clipping most of the line off-chart.
   var valid = values.filter(function(v){ return v !== null && v !== undefined; });
-  var maxV = valid.length ? Math.max.apply(null, valid) : 10;
-  var minV = valid.length ? Math.min(0, Math.min.apply(null, valid)) : 0;
-  var niceMax = Math.ceil((maxV * 1.2) / 5) * 5 || 10;
-  var niceMin = minV < 0 ? Math.floor((minV * 1.2) / 5) * 5 : 0;
+  var dataMax = valid.length ? Math.max.apply(null, valid) : 10;
+  var dataMin = valid.length ? Math.min.apply(null, valid) : 0;
+  var domMax = Math.max(dataMax, 0);
+  var domMin = Math.min(dataMin, 0);
+  var pad = ((domMax - domMin) * 0.15) || (Math.abs(domMax) * 0.15) || 10;
+  var niceMax = domMax + pad;
+  var niceMin = domMin < 0 ? (domMin - pad) : 0;
   var range = (niceMax - niceMin) || 1;
 
   var n = months.length;
