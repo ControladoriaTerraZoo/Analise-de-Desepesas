@@ -319,6 +319,26 @@
     font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.04em;
     color:var(--text-secondary); background:var(--surface-2); text-align:left; padding-top:12px;
   }
+  /* Frozen header row (lojas) + frozen first column (despesas). The wrap needs its
+     own bounded scrollport (not the page) for position:sticky to work — overflow-x:auto
+     on the base .table-wrap implicitly computes overflow-y to auto too, which breaks
+     page-relative stickiness even though nothing ever visibly overflows vertically.
+     border-collapse:collapse also silently breaks position:sticky on th/td in Chromium,
+     so this table uses separate borders instead, moving the row divider from tr to td
+     (a border declared on <tr> itself only renders in the collapsing model). */
+  .matrix-wrap{ max-height:70vh; overflow:auto; }
+  table.matrix-table{ border-collapse:separate; border-spacing:0; }
+  table.matrix-table tbody tr{ border-bottom:none; }
+  table.matrix-table tbody td{ border-bottom:1px solid var(--grid); }
+  table.matrix-table thead th{ top:0; z-index:2; }
+  table.matrix-table tbody td:first-child{
+    position:sticky; left:0; z-index:1; background:var(--surface-1); text-align:left;
+  }
+  table.matrix-table tbody tr:hover td:first-child{ background:var(--chip-bg); }
+  table.matrix-table tbody tr.despesa-subgroup-row td:first-child{
+    position:static; background:var(--surface-2);
+  }
+  table.matrix-table thead th:first-child{ left:0; z-index:3; text-align:left; }
   .expense-controls{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px; margin:12px 0 16px; }
   .expense-field{ min-width:0; flex:1 1 260px; }
   .expense-field label{ display:block; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; }
@@ -661,7 +681,7 @@
               <button type="button" class="seg-btn" data-metric="gap">Gap</button>
             </div>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap matrix-wrap">
             <table class="sga-table matrix-table" id="matrix-pct-table">
               <thead>
                 <tr id="matrix-pct-table-head"><th>Despesa</th></tr>
@@ -678,7 +698,7 @@
               <p>Valores em R$ de cada despesa, por loja — mesmo período e filtro acima</p>
             </div>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap matrix-wrap">
             <table class="sga-table matrix-table" id="matrix-rs-table">
               <thead>
                 <tr id="matrix-rs-table-head"><th>Despesa</th></tr>
