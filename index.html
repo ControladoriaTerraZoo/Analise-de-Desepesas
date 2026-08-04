@@ -21,10 +21,7 @@
     --focus:var(--v2);
     --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
     --brand-dark:var(--v1); --brand-primary:var(--v2); --brand-primary-dark:#1b5e20; --brand-muted:var(--v5);
-    --zoo-bright:var(--v4); --heat-min:#fdecea; --heat-max:#b71c1c;
-    --heat-good-min:#E8F5E9; --heat-good-max:#1b5e20;
-    --band-1:#C8E6C9; --band-1-text:#111; --band-2:#FFF59D; --band-2-text:#111;
-    --band-3:#FFCDD2; --band-3-text:#111; --band-4:#C62828; --band-4-text:#fff;
+    --zoo-bright:var(--v4);
   }
   @media (prefers-color-scheme: dark){
     :root:where(:not([data-theme="light"])){
@@ -40,7 +37,7 @@
       --chip-bg:#26241f;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
       --brand-dark:#0d1712; --brand-primary:var(--v2); --brand-primary-dark:#1e4524; --brand-muted:#8fa693;
-      --zoo-bright:#A5D6A7; --heat-min:#331c1c; --heat-max:#ef5350; --heat-good-min:#1c331f; --heat-good-max:#4caf50; --band-1:#1e3a20; --band-1-text:#e8f5e9; --band-2:#4a3c0d; --band-2-text:#fff3c4; --band-3:#5c2626; --band-3-text:#ffd9d9; --band-4:#e53935; --band-4-text:#fff;
+      --zoo-bright:#A5D6A7;
     }
   }
   :root[data-theme="dark"]{
@@ -56,7 +53,7 @@
     --chip-bg:#26241f;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
     --brand-dark:#0d1712; --brand-primary:var(--v2); --brand-primary-dark:#1e4524; --brand-muted:#8fa693;
-    --zoo-bright:#A5D6A7; --heat-min:#331c1c; --heat-max:#ef5350; --heat-good-min:#1c331f; --heat-good-max:#4caf50; --band-1:#1e3a20; --band-1-text:#e8f5e9; --band-2:#4a3c0d; --band-2-text:#fff3c4; --band-3:#5c2626; --band-3-text:#ffd9d9; --band-4:#e53935; --band-4-text:#fff;
+    --zoo-bright:#A5D6A7;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -826,44 +823,6 @@ function fmtPP(n, digits){
 }
 function css(varName){
   return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-}
-function hexToRgb(hex){
-  hex = hex.replace("#", "");
-  return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
-}
-// Sequential heat scale: t=0 -> lightest red (smallest value), t=1 -> darkest red (largest value).
-function heatColor(t){
-  var a = hexToRgb(css("--heat-min")), b = hexToRgb(css("--heat-max"));
-  var rgb = a.map(function(c, i){ return Math.round(c + (b[i] - c) * t); });
-  return "rgb(" + rgb.join(",") + ")";
-}
-// Sequential heat scale in green: t=0 -> lightest, t=1 -> darkest. Used for favorable (negative) gap values.
-function heatColorGood(t){
-  var a = hexToRgb(css("--heat-good-min")), b = hexToRgb(css("--heat-good-max"));
-  var rgb = a.map(function(c, i){ return Math.round(c + (b[i] - c) * t); });
-  return "rgb(" + rgb.join(",") + ")";
-}
-function heatTextColor(t){
-  return t > 0.55 ? "#ffffff" : "var(--text-primary)";
-}
-// Diverging heat color for gap-style metrics: positive values scale red (0..maxPos),
-// negative values scale green (0..maxNeg), both anchored at zero.
-function heatColorDiverging(v, maxPos, maxNeg){
-  if (v >= 0){
-    var tp = maxPos > 0 ? v / maxPos : 0.5;
-    return { color: heatColor(tp), text: heatTextColor(tp) };
-  }
-  var tn = maxNeg > 0 ? Math.abs(v) / maxNeg : 0.5;
-  return { color: heatColorGood(tn), text: heatTextColor(tn) };
-}
-// Fixed AV% health bands (not relative to what's on screen): <5% light green,
-// 5–10% light yellow, 10–15% light red, >=15% dark red.
-function heatColorBand(av){
-  if (av === null || av === undefined) return { color: "transparent", text: "var(--text-primary)" };
-  if (av < 5) return { color: css("--band-1"), text: css("--band-1-text") };
-  if (av < 10) return { color: css("--band-2"), text: css("--band-2-text") };
-  if (av < 15) return { color: css("--band-3"), text: css("--band-3-text") };
-  return { color: css("--band-4"), text: css("--band-4-text") };
 }
 function el(tag, attrs, children){
   var e = document.createElement(tag);
@@ -1796,8 +1755,6 @@ function renderExpensePanel(){
   }
 
 
-  // Build the full grid first so the heat scale (darkest = largest, lightest = smallest)
-  // can be normalized against the actual min/max in view, not fixed thresholds.
   var grid = lojaRows.map(function(l){
     return months.map(function(m){
       var key = m.ano + "|" + m.mes + "|" + l.idx;
@@ -1805,25 +1762,12 @@ function renderExpensePanel(){
       return avForMetric(metric, despesaByKey[key], receitaByKey[recKey]);
     });
   });
-  var cellStyle;
-  if (metric === "gap"){
-    var allVals = grid.reduce(function(acc, row){ return acc.concat(row.filter(function(v){ return v !== null; })); }, []);
-    var maxPos = allVals.length ? Math.max.apply(null, allVals.filter(function(v){ return v >= 0; }).concat(0)) : 0;
-    var maxNeg = allVals.length ? Math.max.apply(null, allVals.filter(function(v){ return v < 0; }).map(Math.abs).concat(0)) : 0;
-    cellStyle = function(av){ return heatColorDiverging(av, maxPos, maxNeg); };
-  } else {
-    // Fixed AV% health bands, not relative to what's currently on screen.
-    cellStyle = function(av){ return heatColorBand(av); };
-  }
 
   var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
     var cells = [ el("td", {}, [l.name]) ];
     grid[li].forEach(function(av){
-      if (av === null){ cells.push(el("td", {}, [fmt(av)])); return; }
-      var s = cellStyle(av);
-      var td = el("td", { style: "background:" + s.color + "; color:" + s.text + ";" }, [fmt(av)]);
-      cells.push(td);
+      cells.push(el("td", {}, [fmt(av)]));
     });
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
@@ -1908,32 +1852,12 @@ function renderExpenseRSPanel(){
       return rsForMetric(metric, despesaByKey[key]);
     });
   });
-  var allVals = grid.reduce(function(acc, row){ return acc.concat(row.filter(function(v){ return v !== null; })); }, []);
-
-  var cellStyle;
-  if (metric === "gap"){
-    var maxPos = allVals.length ? Math.max.apply(null, allVals.filter(function(v){ return v >= 0; }).concat(0)) : 0;
-    var maxNeg = allVals.length ? Math.max.apply(null, allVals.filter(function(v){ return v < 0; }).map(Math.abs).concat(0)) : 0;
-    cellStyle = function(av){ return heatColorDiverging(av, maxPos, maxNeg); };
-  } else {
-    var absVals = allVals.map(Math.abs);
-    var minA = absVals.length ? Math.min.apply(null, absVals) : 0;
-    var maxA = absVals.length ? Math.max.apply(null, absVals) : 1;
-    var span = maxA - minA;
-    cellStyle = function(av){
-      var t = span > 0 ? (Math.abs(av) - minA) / span : 0.5;
-      return { color: heatColor(t), text: heatTextColor(t) };
-    };
-  }
 
   var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
     var cells = [ el("td", {}, [l.name]) ];
     grid[li].forEach(function(av){
-      if (av === null){ cells.push(el("td", {}, [fmtBRL(av)])); return; }
-      var s = cellStyle(av);
-      var td = el("td", { style: "background:" + s.color + "; color:" + s.text + ";" }, [fmtBRL(av)]);
-      cells.push(td);
+      cells.push(el("td", {}, [fmtBRL(av)]));
     });
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
@@ -2002,7 +1926,6 @@ function computeMatrixAggregates(){
 
 function renderMatrixTable(theadId, tbodyId, lojaCols, valueFn, fmt){
   var g = state.granular;
-  var metric = state.matrixMetric;
 
   var thead = document.getElementById(theadId);
   thead.innerHTML = "";
@@ -2024,8 +1947,6 @@ function renderMatrixTable(theadId, tbodyId, lojaCols, valueFn, fmt){
     bySubgroup[sg].push({ idx:idx, name:name });
   });
 
-  var useAbsScale = fmt === fmtBRL;
-
   LINE_DEFS.forEach(function(def){
     var items = (bySubgroup[def.key] || []).slice().sort(function(a,b){ return a.name.localeCompare(b.name, "pt-BR"); });
     if (!items.length) return;
@@ -2036,32 +1957,10 @@ function renderMatrixTable(theadId, tbodyId, lojaCols, valueFn, fmt){
 
     items.forEach(function(it){
       var rowVals = lojaCols.map(function(l){ return valueFn(it.idx, l.idx); });
-      var validVals = rowVals.filter(function(v){ return v !== null; });
-
-      var cellStyle;
-      if (metric === "gap"){
-        var maxPos = validVals.length ? Math.max.apply(null, validVals.filter(function(v){ return v >= 0; }).concat(0)) : 0;
-        var maxNeg = validVals.length ? Math.max.apply(null, validVals.filter(function(v){ return v < 0; }).map(Math.abs).concat(0)) : 0;
-        cellStyle = function(v){ return heatColorDiverging(v, maxPos, maxNeg); };
-      } else if (!useAbsScale){
-        // AV% matrix: fixed health bands, not relative to what's currently on screen.
-        cellStyle = function(v){ return heatColorBand(v); };
-      } else {
-        var scaleVals = validVals.map(Math.abs);
-        var minV = scaleVals.length ? Math.min.apply(null, scaleVals) : 0;
-        var maxV = scaleVals.length ? Math.max.apply(null, scaleVals) : 1;
-        var span = maxV - minV;
-        cellStyle = function(v){
-          var t = span > 0 ? (Math.abs(v) - minV) / span : 0.5;
-          return { color: heatColor(t), text: heatTextColor(t) };
-        };
-      }
 
       var cells = [ el("td", {}, [it.name]) ];
       rowVals.forEach(function(v){
-        if (v === null){ cells.push(el("td", {}, [fmt(v)])); return; }
-        var s = cellStyle(v);
-        cells.push(el("td", { style: "background:" + s.color + "; color:" + s.text + ";" }, [fmt(v)]));
+        cells.push(el("td", {}, [fmt(v)]));
       });
       tbody.appendChild(el("tr", {}, cells));
     });
