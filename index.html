@@ -2349,7 +2349,11 @@ var TARGET_LINES = {
   "aluguel": "aluguel"
 };
 
-function buildRowsFromCSV(text, anoHint){
+// Flattens a published-CSV export of the raw ledger sheet (one row per Mês Ano/Loja/
+// Canal/DRE line, same shape as the original Excel extract) into {ano,mes,loja,canal,
+// dreRaw,r,o} records — the shared starting point for both the top-line DRE totals
+// (buildTopRowsFromSheetRows) and the despesa-level breakdown (buildGranularRowsFromSheetRows).
+function parseSheetRows(text){
   var table = parseCSV(text);
   if (!table.length) return [];
   var header = table[0].map(normHeader);
@@ -2368,25 +2372,132 @@ function buildRowsFromCSV(text, anoHint){
   var realIdx = remaining[0] !== undefined ? remaining[0] : 4;
   var orcIdx = remaining[1] !== undefined ? remaining[1] : 5;
 
-  var buckets = {};
+  var out = [];
   for (var r=1; r<table.length; r++){
     var row = table[r];
     if (!row || row.length < 4) continue;
-    var dreName = normHeader(row[idx.dre]).replace(/[«»"]/g,"").trim();
-    var key = TARGET_LINES[dreName];
-    if (!key) continue;
+    var dreRaw = String(row[idx.dre] || "").trim();
+    if (!dreRaw) continue;
     var when = parseMesAno(row[idx.mesAno]);
     if (!when) continue;
-    if (anoHint && when.ano !== anoHint) { /* keep parsed year, hint is just a sanity default */ }
-    var loja = row[idx.loja], canal = row[idx.canal];
-    var bKey = when.ano + "|" + when.mes + "|" + loja + "|" + canal;
-    if (!buckets[bKey]) buckets[bKey] = { ano: when.ano, mes: when.mes, loja: loja, canal: canal };
-    var rv = parseNumberLoose(row[realIdx]);
-    var ov = parseNumberLoose(row[orcIdx]);
-    var prev = buckets[bKey][key] || { r: 0, o: 0 };
-    buckets[bKey][key] = { r: prev.r + rv, o: prev.o + ov };
+    out.push({
+      ano: when.ano, mes: when.mes, loja: row[idx.loja], canal: row[idx.canal],
+      dreRaw: dreRaw, r: parseNumberLoose(row[realIdx]), o: parseNumberLoose(row[orcIdx])
+    });
   }
+  return out;
+}
+
+function buildTopRowsFromSheetRows(sheetRows){
+  var buckets = {};
+  sheetRows.forEach(function(row){
+    var dreName = normHeader(row.dreRaw).replace(/[«»"]/g,"").trim();
+    var key = TARGET_LINES[dreName];
+    if (!key) return;
+    var bKey = row.ano + "|" + row.mes + "|" + row.loja + "|" + row.canal;
+    if (!buckets[bKey]) buckets[bKey] = { ano: row.ano, mes: row.mes, loja: row.loja, canal: row.canal };
+    var prev = buckets[bKey][key] || { r: 0, o: 0 };
+    buckets[bKey][key] = { r: prev.r + row.r, o: prev.o + row.o };
+  });
   return Object.keys(buckets).map(function(k){ return buckets[k]; });
+}
+
+function buildRowsFromCSV(text){
+  return buildTopRowsFromSheetRows(parseSheetRows(text));
+}
+
+/* ---- Despesa-level breakdown (Análise por Despesa / Loja x Despesa) ----
+ * The raw ledger lists every DRE account under "SG&A" grouped by subgroup headers
+ * (e.g. "Despesas Administrativas") until the next non-despesa marker (e.g. "EBITDA").
+ * Mirrors the one-time Python extraction originally used to bake the snapshot data,
+ * so it can run the same way live in the browser against a fresh Google Sheets export. */
+var GRANULAR_SUBGROUP_HEADERS = {
+  "Comissões sobre Vendas": "comissoes",
+  "Gastos com Pessoal Comercial": "pessoal_comercial",
+  "Gastos com Pessoal - SG&A": "pessoal",
+  "Despesas Comerciais": "comerciais",
+  "Despesas com Distribuição": "distribuicao",
+  "Despesas Administrativas": "administrativas",
+  "Despesas Tributárias": "tributarias",
+  "Aluguel": "aluguel"
+};
+var GRANULAR_BLOCK_START = "SG&A";
+var GRANULAR_STOP_MARKERS = {
+  "EBITDA":1, "EBITDA Ajustado":1, "EBIT":1, "Receitas/Despesas Financeiras":1,
+  "Despesas Financeiras":1, "Receitas Financeiras":1, "EBT":1, "Lucro Líquido":1,
+  "Receita com Serviços":1, "Custo dos Serviços Prestados":1,
+  "Outras Receitas/Despesas Operacionais":1, "Outras Receitas Operacionais":1,
+  "Outras Despesas Operacionais":1, "Ajuste Intercompany":1,
+  "Despesas Pre Operacionais":1, "Resultados Não Recorentes":1, "Receitas Não Recorrentes":1,
+  "Despesas Não Recorrentes":1, "D&A":1, "Depreciação e Amortização - SG&A":1,
+  "Outras Receitas e Despesas NOP":1, "Receitas Não Operacionais":1, "Despesas Não Operacionais":1,
+  "Receita Bruta":1, "Receita Líquida":1, "CMV & CSP":1, "Lucro Bruto":1, "Demais Operações":1,
+  "Lucro Bruto Ajustado":1
+};
+function cleanDespesaName(name){
+  var m = String(name).match(/^\d[\d.]*-(.*)$/);
+  var base = m ? m[1] : name;
+  return String(base).trim().replace(/^"+|"+$/g, "").trim();
+}
+function buildGranularRowsFromSheetRows(sheetRows){
+  var groups = {}, order = [];
+  sheetRows.forEach(function(row, i){
+    var key = row.loja + "|" + row.canal + "|" + row.ano + "|" + row.mes;
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push(i);
+  });
+
+  var leafMap = {};
+  order.forEach(function(key){
+    var idxs = groups[key];
+    var startPos = -1;
+    for (var i = 0; i < idxs.length; i++){
+      if (sheetRows[idxs[i]].dreRaw === GRANULAR_BLOCK_START) { startPos = i; break; }
+    }
+    if (startPos === -1) return;
+    var current = null;
+    for (var j = startPos + 1; j < idxs.length; j++){
+      var name = sheetRows[idxs[j]].dreRaw;
+      if (GRANULAR_STOP_MARKERS[name]) break;
+      if (GRANULAR_SUBGROUP_HEADERS[name]) { current = GRANULAR_SUBGROUP_HEADERS[name]; continue; }
+      if (current === null) continue;
+      leafMap[name] = current;
+    }
+  });
+
+  var granularRows = [];
+  sheetRows.forEach(function(row){
+    var subgroup = leafMap[row.dreRaw];
+    if (!subgroup) return;
+    granularRows.push({
+      ano: row.ano, mes: row.mes, loja: row.loja, canal: row.canal,
+      despesa: cleanDespesaName(row.dreRaw), subgroup: subgroup, r: row.r, o: row.o
+    });
+  });
+  return granularRows;
+}
+// Packs {ano,mes,loja,canal,despesa,subgroup,r,o} records into the compact
+// {lojas,canais,despesas,despesaSubgroup,rows} shape state.granular expects everywhere
+// else, matching the format of the embedded snapshot (window.__GRANULAR__).
+function compactGranular(granularRows){
+  var lojaIdx = {}, lojas = [];
+  var canalIdx = {}, canais = [];
+  var despesaIdx = {}, despesas = [], despesaSubgroup = [];
+  function idxFor(map, arr, name){
+    if (map[name] === undefined){ map[name] = arr.length; arr.push(name); }
+    return map[name];
+  }
+  var rows = granularRows.map(function(rec){
+    var li = idxFor(lojaIdx, lojas, rec.loja);
+    var ci = idxFor(canalIdx, canais, rec.canal);
+    if (despesaIdx[rec.despesa] === undefined){
+      despesaIdx[rec.despesa] = despesas.length;
+      despesas.push(rec.despesa);
+      despesaSubgroup.push(rec.subgroup);
+    }
+    return [rec.ano, rec.mes, li, ci, despesaIdx[rec.despesa], rec.r, rec.o];
+  });
+  return { lojas:lojas, canais:canais, despesas:despesas, despesaSubgroup:despesaSubgroup, rows:rows };
 }
 
 function fetchText(url){
@@ -2400,24 +2511,29 @@ function loadFromGoogleSheets(url2025, url2026){
   var statusEl = document.getElementById("ds-status");
   statusEl.textContent = "Carregando dados...";
   var tasks = [];
-  if (url2025) tasks.push(fetchText(url2025).then(function(t){ return buildRowsFromCSV(t, 2025); }));
-  if (url2026) tasks.push(fetchText(url2026).then(function(t){ return buildRowsFromCSV(t, 2026); }));
+  if (url2025) tasks.push(fetchText(url2025).then(parseSheetRows));
+  if (url2026) tasks.push(fetchText(url2026).then(parseSheetRows));
   if (!tasks.length){
     statusEl.textContent = "Informe ao menos um link de CSV publicado.";
     return;
   }
   Promise.all(tasks).then(function(results){
-    var combined = [].concat.apply([], results);
-    if (!combined.length) throw new Error("Nenhuma linha reconhecida no CSV (verifique o formato).");
-    state.data = combined;
+    var sheetRows = [].concat.apply([], results);
+    var topRows = buildTopRowsFromSheetRows(sheetRows);
+    if (!topRows.length) throw new Error("Nenhuma linha reconhecida no CSV (verifique o formato).");
+    var granularRows = buildGranularRowsFromSheetRows(sheetRows);
+    state.data = topRows;
+    state.granular = compactGranular(granularRows);
     state.usingSnapshot = false;
     try { localStorage.setItem(LS_URLS_KEY, JSON.stringify({ url2025:url2025, url2026:url2026 })); } catch(e){}
     computeOptions();
     resetFiltersToAll();
     updateFilterButtonCounts();
     renderFilterPanels();
+    buildDespesaOptions(document.getElementById("expense-select"));
     renderDashboardBody();
-    statusEl.textContent = "Dados carregados do Google Sheets com sucesso (" + combined.length + " combinações mês/loja/canal).";
+    var granWarn = granularRows.length ? "" : " Atenção: nenhum detalhamento por despesa encontrado — Análise por Despesa e Loja x Despesa ficarão vazias.";
+    statusEl.textContent = "Dados carregados do Google Sheets com sucesso (" + topRows.length + " combinações mês/loja/canal)." + granWarn;
     setBanner("ok", "Exibindo dados ao vivo do Google Sheets.", true);
   }).catch(function(err){
     statusEl.textContent = "Falha ao carregar do Google Sheets: " + err.message + ". Mantendo o snapshot local.";
@@ -2427,12 +2543,14 @@ function loadFromGoogleSheets(url2025, url2026){
 
 function useSnapshot(){
   state.data = window.__EMBEDDED_DATA__ || [];
+  state.granular = window.__GRANULAR__ || { lojas:[], canais:[], despesas:[], despesaSubgroup:[], rows:[] };
   state.usingSnapshot = true;
   try { localStorage.removeItem(LS_URLS_KEY); } catch(e){}
   computeOptions();
   resetFiltersToAll();
   updateFilterButtonCounts();
   renderFilterPanels();
+  buildDespesaOptions(document.getElementById("expense-select"));
   renderDashboardBody();
   document.getElementById("ds-status").textContent = "Usando o snapshot local (" + window.__SNAPSHOT_DATE__ + ").";
   setBanner("", "");
