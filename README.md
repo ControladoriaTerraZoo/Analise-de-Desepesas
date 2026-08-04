@@ -1,4 +1,4 @@
-# Análise de Despesas — SG&A
+# Analise de Despesas
 
 Dashboard estático (`index.html`, sem dependências externas) para análise vertical (AV%) das
 despesas de SG&A sobre a Receita Líquida, com dados de 2025 e 2026.
