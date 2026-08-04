@@ -652,7 +652,7 @@ function fmtBRL(n){
   if (n === null || n === undefined || isNaN(n)) return "—";
   var neg = n < 0;
   var abs = Math.abs(n);
-  var s = abs.toLocaleString("pt-BR", { minimumFractionDigits:2, maximumFractionDigits:2 });
+  var s = abs.toLocaleString("pt-BR", { minimumFractionDigits:0, maximumFractionDigits:0 });
   return (neg ? "-R$ " : "R$ ") + s;
 }
 function fmtPct(n, digits){
