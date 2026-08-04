@@ -297,6 +297,7 @@
   table.sga-table tbody tr{ border-bottom:1px solid var(--grid); }
   table.sga-table tbody tr:hover{ background:var(--chip-bg); }
   table.sga-table tbody tr.total-row{ font-weight:700; border-top:1px solid var(--axis); border-bottom:none; }
+  table.sga-table tbody tr.receita-row{ background:var(--chip-bg); }
   table.sga-table td, table.sga-table th{ font-variant-numeric:tabular-nums; }
 
   /* ---------- Data source panel ---------- */
@@ -1657,6 +1658,18 @@ function renderExpensePanel(){
     .filter(function(l){ return allowedLoja[l.idx]; })
     .sort(function(a,b){ return a.name.localeCompare(b.name, "pt-BR"); });
 
+  // Receita Líquida per month, summed across the allowed lojas — same value shown
+  // regardless of which despesa is selected, so it's computed once up front.
+  var receitaMonthly = months.map(function(m){
+    var sum = { r:0, o:0 };
+    lojaRows.forEach(function(l){
+      var recKey = m.ano + "|" + m.mes + "|" + l.name;
+      var rec = receitaByKey[recKey];
+      if (rec){ sum.r += rec.r; sum.o += rec.o; }
+    });
+    return sum;
+  });
+
   var thead = document.getElementById("expense-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
@@ -1669,6 +1682,13 @@ function renderExpensePanel(){
     tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+1) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
+
+  var receitaCells = [ el("td", {}, [el("strong", {}, ["Receita Líquida"])]) ];
+  receitaMonthly.forEach(function(sum){
+    var v = metric === "gap" ? (sum.r - sum.o) : sum[metric];
+    receitaCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(v)]) ]));
+  });
+  tbody.appendChild(el("tr", { class:"receita-row" }, receitaCells));
 
   // Build the full grid first so the heat scale (darkest = largest, lightest = smallest)
   // can be normalized against the actual min/max in view, not fixed thresholds.
@@ -1717,17 +1737,14 @@ function renderExpensePanel(){
   });
 
   var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
-  months.forEach(function(m){
-    var dSum = { r:0, o:0 }, recSum = { r:0, o:0 }, dFound = false;
+  months.forEach(function(m, mi){
+    var dSum = { r:0, o:0 }, dFound = false;
     lojaRows.forEach(function(l){
       var key = m.ano + "|" + m.mes + "|" + l.idx;
       var d = despesaByKey[key];
       if (d){ dSum.r += d.r; dSum.o += d.o; dFound = true; }
-      var recKey = m.ano + "|" + m.mes + "|" + l.name;
-      var rec = receitaByKey[recKey];
-      if (rec){ recSum.r += rec.r; recSum.o += rec.o; }
     });
-    var av = dFound ? avForMetric(metric, dSum, recSum) : null;
+    var av = dFound ? avForMetric(metric, dSum, receitaMonthly[mi]) : null;
     totalCells.push(el("td", {}, [ el("strong", {}, [fmt(av)]) ]));
   });
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
@@ -1771,6 +1788,26 @@ function renderExpenseRSPanel(){
     .filter(function(l){ return allowedLoja[l.idx]; })
     .sort(function(a,b){ return a.name.localeCompare(b.name, "pt-BR"); });
 
+  // Receita Líquida {r,o} per (ano,mes,loja name), summed across allowed canais
+  var receitaByKey = {};
+  getFilteredRows().forEach(function(row){
+    var key = row.ano + "|" + row.mes + "|" + row.loja;
+    if (!receitaByKey[key]) receitaByKey[key] = { r:0, o:0 };
+    if (row.receita_liquida){
+      receitaByKey[key].r += row.receita_liquida.r || 0;
+      receitaByKey[key].o += row.receita_liquida.o || 0;
+    }
+  });
+  var receitaMonthly = months.map(function(m){
+    var sum = { r:0, o:0 };
+    lojaRows.forEach(function(l){
+      var recKey = m.ano + "|" + m.mes + "|" + l.name;
+      var rec = receitaByKey[recKey];
+      if (rec){ sum.r += rec.r; sum.o += rec.o; }
+    });
+    return sum;
+  });
+
   var thead = document.getElementById("expense-rs-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
@@ -1783,6 +1820,13 @@ function renderExpenseRSPanel(){
     tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+1) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
+
+  var receitaCells = [ el("td", {}, [el("strong", {}, ["Receita Líquida"])]) ];
+  receitaMonthly.forEach(function(sum){
+    var v = metric === "gap" ? (sum.r - sum.o) : sum[metric];
+    receitaCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(v)]) ]));
+  });
+  tbody.appendChild(el("tr", { class:"receita-row" }, receitaCells));
 
   var grid = lojaRows.map(function(l){
     return months.map(function(m){
