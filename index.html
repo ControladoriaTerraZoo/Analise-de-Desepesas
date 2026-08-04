@@ -303,6 +303,22 @@
   /* ---------- Data source panel ---------- */
   /* ---------- Expense drill-down panel ---------- */
   .expense-receita-wrap{ margin-top:12px; }
+
+  /* ---------- View tabs ---------- */
+  .view-tabs{ display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); }
+  .view-tab{
+    appearance:none; border:none; background:transparent; cursor:pointer;
+    padding:10px 16px; font-size:13px; font-weight:600; color:var(--text-secondary);
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .view-tab:hover:not(.active){ color:var(--text-primary); }
+  .view-tab.active{ color:var(--brand-primary); border-bottom-color:var(--brand-primary); }
+
+  /* ---------- Loja x Despesa matrix ---------- */
+  table.matrix-table tbody tr.despesa-subgroup-row td{
+    font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text-secondary); background:var(--surface-2); text-align:left; padding-top:12px;
+  }
   .expense-controls{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px; margin:12px 0 16px; }
   .expense-field{ min-width:0; flex:1 1 260px; }
   .expense-field label{ display:block; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; }
@@ -462,8 +478,14 @@
     </div>
 
     <main class="main-content">
+      <div class="view-tabs" id="view-tabs">
+        <button type="button" class="view-tab active" data-view="sga">Análise SG&amp;A</button>
+        <button type="button" class="view-tab" data-view="loja-despesa">Loja &times; Despesa</button>
+      </div>
+
       <div id="data-banner"></div>
 
+      <div id="view-sga">
       <div class="kpi-grid" id="kpi-grid"></div>
 
       <div class="charts-grid">
@@ -622,6 +644,50 @@
           <div class="ds-status" id="ds-status"></div>
         </details>
       </div>
+      </div><!-- /view-sga -->
+
+      <div id="view-loja-despesa" class="hidden">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Loja &times; Despesa — AV%</h2>
+              <p id="matrix-period-label">AV% de cada despesa sobre a Receita Líquida, por loja</p>
+            </div>
+          </div>
+          <div class="expense-controls">
+            <div class="seg-toggle" id="matrix-metric-toggle">
+              <button type="button" class="seg-btn active" data-metric="r">Realizado</button>
+              <button type="button" class="seg-btn" data-metric="o">Orçado</button>
+              <button type="button" class="seg-btn" data-metric="gap">Gap</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="sga-table matrix-table" id="matrix-pct-table">
+              <thead>
+                <tr id="matrix-pct-table-head"><th>Despesa</th></tr>
+              </thead>
+              <tbody id="matrix-pct-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Loja &times; Despesa — R$</h2>
+              <p>Valores em R$ de cada despesa, por loja — mesmo período e filtro acima</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="sga-table matrix-table" id="matrix-rs-table">
+              <thead>
+                <tr id="matrix-rs-table-head"><th>Despesa</th></tr>
+              </thead>
+              <tbody id="matrix-rs-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /view-loja-despesa -->
 
       <footer>
         Dashboard interno &middot; Análise de Despesas SG&amp;A &middot; dados em R$, AV% calculado sobre a Receita Líquida.
@@ -710,7 +776,8 @@ var state = {
   filters: { ano:new Set(), mes:new Set(), loja:new Set(), canal:new Set(), regiao:new Set() },
   options: { ano:[], mes:[], loja:[], canal:[], regiao:[] },
   granular: window.__GRANULAR__ || { lojas:[], canais:[], despesas:[], despesaSubgroup:[], rows:[] },
-  expenseMetric: "r"
+  expenseMetric: "r",
+  matrixMetric: "r"
 };
 
 /* ======================= Utils ======================= */
@@ -1864,6 +1931,159 @@ function renderExpenseRSPanel(){
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
 }
 
+/* ======================= Loja x Despesa matrix (accumulated period) ======================= */
+// Accumulates every selected ano/mês into one value per (despesa, loja) — there is
+// no month axis here, only loja columns, so "accumulated" falls out of the grouping
+// naturally: summing across every (ano,mes) that passes the filter.
+function computeMatrixAggregates(){
+  var g = state.granular;
+  var allowedCanal = {};
+  g.canais.forEach(function(name, idx){ if (state.filters.canal.has(name)) allowedCanal[idx] = true; });
+  var allowedLojaIdx = {};
+  g.lojas.forEach(function(name, idx){
+    if (state.filters.loja.has(name) && state.filters.regiao.has(regiaoOf(name))) allowedLojaIdx[idx] = true;
+  });
+
+  var despesaByKey = {};
+  g.rows.forEach(function(row){
+    var ano = row[0], mes = row[1], lojaIdx = row[2], canalIdx = row[3], dIdx = row[4], r = row[5], o = row[6];
+    if (!state.filters.ano.has(ano) || !state.filters.mes.has(mes)) return;
+    if (!allowedLojaIdx[lojaIdx] || !allowedCanal[canalIdx]) return;
+    var key = dIdx + "|" + lojaIdx;
+    if (!despesaByKey[key]) despesaByKey[key] = { r:0, o:0 };
+    despesaByKey[key].r += r; despesaByKey[key].o += o;
+  });
+
+  var receitaByLoja = {};
+  getFilteredRows().forEach(function(row){
+    if (!receitaByLoja[row.loja]) receitaByLoja[row.loja] = { r:0, o:0 };
+    if (row.receita_liquida){
+      receitaByLoja[row.loja].r += row.receita_liquida.r || 0;
+      receitaByLoja[row.loja].o += row.receita_liquida.o || 0;
+    }
+  });
+
+  var lojaCols = g.lojas
+    .map(function(name, idx){ return { name:name, idx:idx }; })
+    .filter(function(l){ return allowedLojaIdx[l.idx]; })
+    .sort(function(a,b){ return a.name.localeCompare(b.name, "pt-BR"); });
+
+  return { despesaByKey: despesaByKey, receitaByLoja: receitaByLoja, lojaCols: lojaCols };
+}
+
+function renderMatrixTable(theadId, tbodyId, lojaCols, valueFn, fmt){
+  var g = state.granular;
+  var metric = state.matrixMetric;
+
+  var thead = document.getElementById(theadId);
+  thead.innerHTML = "";
+  thead.appendChild(el("th", {}, ["Despesa"]));
+  lojaCols.forEach(function(l){ thead.appendChild(el("th", {}, [l.name])); });
+
+  var tbody = document.getElementById(tbodyId);
+  tbody.innerHTML = "";
+
+  if (!lojaCols.length){
+    tbody.appendChild(el("tr", {}, [ el("td", {}, ["Sem dados para os filtros selecionados."]) ]));
+    return;
+  }
+
+  var bySubgroup = {};
+  g.despesas.forEach(function(name, idx){
+    var sg = g.despesaSubgroup[idx];
+    if (!bySubgroup[sg]) bySubgroup[sg] = [];
+    bySubgroup[sg].push({ idx:idx, name:name });
+  });
+
+  var useAbsScale = fmt === fmtBRL;
+
+  LINE_DEFS.forEach(function(def){
+    var items = (bySubgroup[def.key] || []).slice().sort(function(a,b){ return a.name.localeCompare(b.name, "pt-BR"); });
+    if (!items.length) return;
+
+    tbody.appendChild(el("tr", { class:"despesa-subgroup-row" }, [
+      el("td", { colspan:String(lojaCols.length + 1) }, [def.label])
+    ]));
+
+    items.forEach(function(it){
+      var rowVals = lojaCols.map(function(l){ return valueFn(it.idx, l.idx); });
+      var validVals = rowVals.filter(function(v){ return v !== null; });
+
+      var cellStyle;
+      if (metric === "gap"){
+        var maxPos = validVals.length ? Math.max.apply(null, validVals.filter(function(v){ return v >= 0; }).concat(0)) : 0;
+        var maxNeg = validVals.length ? Math.max.apply(null, validVals.filter(function(v){ return v < 0; }).map(Math.abs).concat(0)) : 0;
+        cellStyle = function(v){ return heatColorDiverging(v, maxPos, maxNeg); };
+      } else {
+        var scaleVals = useAbsScale ? validVals.map(Math.abs) : validVals;
+        var minV = scaleVals.length ? Math.min.apply(null, scaleVals) : 0;
+        var maxV = scaleVals.length ? Math.max.apply(null, scaleVals) : 1;
+        var span = maxV - minV;
+        cellStyle = function(v){
+          var t = span > 0 ? ((useAbsScale ? Math.abs(v) : v) - minV) / span : 0.5;
+          return { color: heatColor(t), text: heatTextColor(t) };
+        };
+      }
+
+      var cells = [ el("td", {}, [it.name]) ];
+      rowVals.forEach(function(v){
+        if (v === null){ cells.push(el("td", {}, [fmt(v)])); return; }
+        var s = cellStyle(v);
+        cells.push(el("td", { style: "background:" + s.color + "; color:" + s.text + ";" }, [fmt(v)]));
+      });
+      tbody.appendChild(el("tr", {}, cells));
+    });
+  });
+}
+
+function renderLojaDespesaMatrix(){
+  var metric = state.matrixMetric;
+  var agg = computeMatrixAggregates();
+  var months = aggregateByMonth(getFilteredRows());
+
+  var periodLabel = months.length
+    ? (months.length === 1 ? months[0].label : months[0].label + " a " + months[months.length - 1].label + " (" + months.length + " meses)")
+    : "sem dados para os filtros selecionados";
+  document.getElementById("matrix-period-label").textContent =
+    "AV% de cada despesa sobre a Receita Líquida, por loja — acumulado de " + periodLabel;
+
+  renderMatrixTable("matrix-pct-table-head", "matrix-pct-table-body", agg.lojaCols, function(dIdx, lojaIdx){
+    return avForMetric(metric, agg.despesaByKey[dIdx + "|" + lojaIdx], agg.receitaByLoja[state.granular.lojas[lojaIdx]]);
+  }, metric === "gap" ? fmtPP : fmtPct);
+
+  renderMatrixTable("matrix-rs-table-head", "matrix-rs-table-body", agg.lojaCols, function(dIdx, lojaIdx){
+    return rsForMetric(metric, agg.despesaByKey[dIdx + "|" + lojaIdx]);
+  }, fmtBRL);
+}
+
+function renderLojaDespesaMatrixIfVisible(){
+  if (!document.getElementById("view-loja-despesa").classList.contains("hidden")) renderLojaDespesaMatrix();
+}
+
+function initLojaDespesaView(){
+  document.getElementById("matrix-metric-toggle").addEventListener("click", function(ev){
+    var btn = ev.target.closest(".seg-btn");
+    if (!btn) return;
+    state.matrixMetric = btn.getAttribute("data-metric");
+    document.querySelectorAll("#matrix-metric-toggle .seg-btn").forEach(function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    renderLojaDespesaMatrix();
+  });
+}
+
+function initViewTabs(){
+  document.querySelectorAll(".view-tab").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var view = btn.getAttribute("data-view");
+      document.querySelectorAll(".view-tab").forEach(function(b){ b.classList.toggle("active", b === btn); });
+      document.getElementById("view-sga").classList.toggle("hidden", view !== "sga");
+      document.getElementById("view-loja-despesa").classList.toggle("hidden", view !== "loja-despesa");
+      if (view === "loja-despesa") renderLojaDespesaMatrix();
+    });
+  });
+}
+
 /* ======================= Expense drill-down modal ======================= */
 var METRIC_LABELS = { r:"Realizado", o:"Orçado", gap:"Gap Realizado − Orçado" };
 function openExpenseModal(despesaName, lojaName, metric, months, values, raw, unit){
@@ -2260,6 +2480,7 @@ function renderDashboardBody(){
   renderYoYSection();
   renderExpensePanel();
   renderExpenseRSPanel();
+  renderLojaDespesaMatrixIfVisible();
 }
 
 var chromeInitialized = false;
@@ -2278,6 +2499,8 @@ function initChromeOnce(){
   initDataSourcePanel();
   initExpensePanel();
   initExpenseModal();
+  initLojaDespesaView();
+  initViewTabs();
 
   document.getElementById("btn-reset-filters").addEventListener("click", function(){
     resetFiltersToAll();
@@ -2292,6 +2515,7 @@ function initChromeOnce(){
   if (window.matchMedia){
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){
       renderTable(); renderTrendChart(); renderBarChart(); renderYoYSection(); renderExpensePanel(); renderExpenseRSPanel();
+      renderLojaDespesaMatrixIfVisible();
     });
   }
 }
