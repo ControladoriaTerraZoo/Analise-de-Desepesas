@@ -239,7 +239,7 @@
   .grid-line{ stroke:var(--grid); stroke-width:1; }
   .axis-line{ stroke:var(--axis); stroke-width:1; }
   .tick-label{ font-size:10.5px; fill:var(--text-muted); }
-  .bar-value-label{ font-size:8.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .bar-value-label{ font-size:8.5px; font-weight:400; font-variant-numeric:tabular-nums; }
 
   .tooltip{
     position:fixed; pointer-events:none; z-index:50; background:var(--surface-2); border:1px solid var(--border);
@@ -1007,7 +1007,7 @@ function renderTrendChart(){
         lbl.setAttribute("x", x + barW/2); lbl.setAttribute("y", y - 4);
         lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","bar-value-label");
         lbl.setAttribute("fill", css(spec[1]));
-        lbl.textContent = fmtPct(v, 0);
+        lbl.textContent = fmtPct(v, 1);
         svg.appendChild(lbl);
       }
     });
@@ -1221,7 +1221,7 @@ function renderYoYChart(monthly, years, host){
         lbl.setAttribute("x", x + barW/2); lbl.setAttribute("y", y - 4);
         lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","bar-value-label");
         lbl.setAttribute("fill", color);
-        lbl.textContent = fmtPct(val.avR, 0);
+        lbl.textContent = fmtPct(val.avR, 1);
         svg.appendChild(lbl);
       }
     });
