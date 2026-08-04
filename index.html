@@ -785,6 +785,8 @@ window.__LOJA_REGIAO__ = {
   "UMARIZAL": "Outros Estados",
   "VILA ISABEL": "São Luís"
 };
+window.__APPSCRIPT_URL__ = "";
+window.__APPSCRIPT_TOKEN__ = "";
 </script>
 <script>
 (function(){
@@ -805,6 +807,7 @@ var TOTAL_KEY = "sga_total";
 var TOTAL_LABEL = "SG&A (Total)";
 var MONTH_NAMES = ["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 var LS_APPSCRIPT_KEY = "sga_dashboard_appscript_v1";
+var LS_SNAPSHOT_PREF_KEY = "sga_dashboard_prefer_snapshot_v1";
 var SESSION_KEY = "sga_dashboard_session_v1";
 var PWD_OVERRIDE_KEY = "sga_dashboard_pwd_overrides_v1";
 
@@ -858,7 +861,70 @@ function el(tag, attrs, children){
 }
 
 /* ======================= Auth ======================= */
-function getUsers(){ return window.__USERS__ || []; }
+// Populated from the live "USUARIOS" sheet (via Apps Script) when window.__APPSCRIPT_URL__
+// is configured; falls back to the baked-in snapshot (window.__USERS__) otherwise/on failure.
+var liveUsers = null;
+function getUsers(){ return liveUsers || window.__USERS__ || []; }
+
+function isForcarTrocaSenha(val){
+  if (val === true) return true;
+  return String(val || "").trim().toLowerCase() === "sim";
+}
+
+function parseUsersCSV(text){
+  var table = parseCSV(text);
+  if (!table.length) return [];
+  var header = table[0].map(normHeader);
+  var idx = {
+    nome: header.indexOf("nome"), email: header.indexOf("email"), senha: header.indexOf("senha"),
+    papel: header.indexOf("papel"), ativo: header.indexOf("ativo"), forcar: header.indexOf("forcartrocasenha")
+  };
+  var out = [];
+  for (var r = 1; r < table.length; r++){
+    var row = table[r];
+    if (!row || !row.length) continue;
+    var email = idx.email > -1 ? row[idx.email] : "";
+    if (!String(email || "").trim()) continue;
+    out.push({
+      nome: idx.nome > -1 ? row[idx.nome] : "",
+      email: email,
+      senha: idx.senha > -1 ? row[idx.senha] : "",
+      papel: idx.papel > -1 ? row[idx.papel] : "",
+      ativo: idx.ativo > -1 ? row[idx.ativo] : "",
+      forcarTrocaSenha: idx.forcar > -1 ? row[idx.forcar] : ""
+    });
+  }
+  return out;
+}
+
+function fetchUsersFromAppsScript(){
+  var base = window.__APPSCRIPT_URL__;
+  if (!base) return Promise.reject(new Error("Apps Script não configurado"));
+  var sep = base.indexOf("?") > -1 ? "&" : "?";
+  var url = base + sep + "sheet=USUARIOS" + (window.__APPSCRIPT_TOKEN__ ? "&token=" + encodeURIComponent(window.__APPSCRIPT_TOKEN__) : "");
+  return fetchText(url).then(parseUsersCSV);
+}
+
+// Writes the new password straight into the USUARIOS sheet so it works from any
+// device, not just the browser where the person changed it. Never rejects — resolves
+// false on any failure so the caller can fall back to a local-only override instead.
+function postPasswordChangeToAppsScript(email, novaSenha){
+  var base = window.__APPSCRIPT_URL__;
+  if (!base) return Promise.resolve(false);
+  var body = "token=" + encodeURIComponent(window.__APPSCRIPT_TOKEN__ || "") +
+    "&email=" + encodeURIComponent(email) + "&novaSenha=" + encodeURIComponent(novaSenha);
+  return fetch(base, {
+    method: "POST", mode: "cors", credentials: "omit", body: body,
+    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+  }).then(function(resp){
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    return resp.text();
+  }).then(function(text){
+    return text.trim() === "OK";
+  }).catch(function(){
+    return false;
+  });
+}
 
 // This dashboard has no backend, so a password changed on first use can't be written
 // back into the baked-in users list — it's kept as a per-browser override in
@@ -885,7 +951,7 @@ function tryLogin(email, senha){
   if (String(match.ativo || "").trim().toLowerCase() !== "sim") return { ok:false, error:"Usuário inativo. Contate o administrador." };
   // Still on the baked-in temporary senha (no override saved yet) and the account
   // requires a change on first use.
-  var mustChangePassword = !!match.forcarTrocaSenha && overrides[norm] === undefined;
+  var mustChangePassword = isForcarTrocaSenha(match.forcarTrocaSenha) && overrides[norm] === undefined;
   return { ok:true, user:match, mustChangePassword:mustChangePassword };
 }
 
@@ -903,6 +969,8 @@ function initAuth(){
   var errBox = document.getElementById("login-error");
   var changeForm = document.getElementById("force-change-form");
   var changeErrBox = document.getElementById("force-change-error");
+  var submitBtn = form.querySelector('button[type="submit"]');
+  var submitLabel = submitBtn.textContent;
   var pendingUser = null, pendingRemember = false;
 
   // Registered unconditionally — an earlier version returned before this point
@@ -947,12 +1015,23 @@ function initAuth(){
       return;
     }
     changeErrBox.style.display = "none";
-    setPwdOverride(pendingUser.email, p1);
     var user = pendingUser, remember = pendingRemember;
     pendingUser = null;
-    changeForm.classList.add("hidden");
-    form.classList.remove("hidden");
-    finishLogin(user, remember);
+    postPasswordChangeToAppsScript(user.email, p1).then(function(wroteToSheet){
+      if (wroteToSheet){
+        // Patch the in-memory copy too — otherwise a logout/login within the same page
+        // session (no reload) would still match against the stale cached senha.
+        var norm = String(user.email).trim().toLowerCase();
+        (liveUsers || []).forEach(function(u){
+          if (String(u.email || "").trim().toLowerCase() === norm){ u.senha = p1; u.forcarTrocaSenha = "não"; }
+        });
+      } else {
+        setPwdOverride(user.email, p1);
+      }
+      changeForm.classList.add("hidden");
+      form.classList.remove("hidden");
+      finishLogin(user, remember);
+    });
   });
 
   document.getElementById("btn-logout").addEventListener("click", function(){
@@ -966,6 +1045,23 @@ function initAuth(){
   try { saved = JSON.parse(localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY) || "null"); } catch(e){}
   if (saved && saved.email) {
     enterApp(saved);
+    return;
+  }
+
+  // A remembered session skips straight into the app above, so this only runs when the
+  // login form is actually about to be used — fetch the live user list once up front so
+  // tryLogin() checks fresh credentials/senha instead of whatever was baked in at build time.
+  if (window.__APPSCRIPT_URL__){
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Carregando...";
+    fetchUsersFromAppsScript().then(function(users){
+      liveUsers = users;
+    }).catch(function(){
+      // Keep liveUsers null — getUsers() already falls back to the embedded snapshot.
+    }).then(function(){
+      submitBtn.disabled = false;
+      submitBtn.textContent = submitLabel;
+    });
   }
 }
 
@@ -2560,7 +2656,12 @@ function useSnapshot(){
   state.data = window.__EMBEDDED_DATA__ || [];
   state.granular = window.__GRANULAR__ || { lojas:[], canais:[], despesas:[], despesaSubgroup:[], rows:[] };
   state.usingSnapshot = true;
-  try { localStorage.removeItem(LS_APPSCRIPT_KEY); } catch(e){}
+  try {
+    localStorage.removeItem(LS_APPSCRIPT_KEY);
+    // Remembers this was a deliberate opt-out, so the baked-in Apps Script default
+    // (if configured) doesn't silently override the choice again on the next visit.
+    localStorage.setItem(LS_SNAPSHOT_PREF_KEY, "1");
+  } catch(e){}
   computeOptions();
   resetFiltersToAll();
   updateFilterButtonCounts();
@@ -2575,6 +2676,14 @@ function initDataSourcePanel(){
   document.getElementById("snapshot-date").textContent = window.__SNAPSHOT_DATE__;
   var saved = null;
   try { saved = JSON.parse(localStorage.getItem(LS_APPSCRIPT_KEY) || "null"); } catch(e){}
+  var preferSnapshot = false;
+  try { preferSnapshot = localStorage.getItem(LS_SNAPSHOT_PREF_KEY) === "1"; } catch(e){}
+  // First-ever visit (nothing saved, no explicit snapshot choice) with a baked-in Apps
+  // Script default: pre-fill and auto-load it, so every visitor sees live data with zero
+  // configuration — the fields still act as a per-browser override if someone edits them.
+  if (!saved && !preferSnapshot && window.__APPSCRIPT_URL__){
+    saved = { url: window.__APPSCRIPT_URL__, token: window.__APPSCRIPT_TOKEN__ || "" };
+  }
   if (saved){
     document.getElementById("ds-appscript-url").value = saved.url || "";
     document.getElementById("ds-appscript-token").value = saved.token || "";
@@ -2582,7 +2691,10 @@ function initDataSourcePanel(){
   document.getElementById("btn-load-sheets").addEventListener("click", function(){
     var url = document.getElementById("ds-appscript-url").value.trim();
     var token = document.getElementById("ds-appscript-token").value.trim();
-    try { localStorage.setItem(LS_APPSCRIPT_KEY, JSON.stringify({ url:url, token:token })); } catch(e){}
+    try {
+      localStorage.setItem(LS_APPSCRIPT_KEY, JSON.stringify({ url:url, token:token }));
+      localStorage.removeItem(LS_SNAPSHOT_PREF_KEY);
+    } catch(e){}
     loadFromAppsScript(url, token);
   });
   document.getElementById("btn-use-snapshot").addEventListener("click", useSnapshot);
