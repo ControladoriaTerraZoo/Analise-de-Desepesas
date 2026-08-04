@@ -233,7 +233,7 @@
   .grid-line{ stroke:var(--grid); stroke-width:1; }
   .axis-line{ stroke:var(--axis); stroke-width:1; }
   .tick-label{ font-size:10.5px; fill:var(--text-muted); }
-  .direct-label{ font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .bar-value-label{ font-size:8.5px; font-weight:700; font-variant-numeric:tabular-nums; }
 
   .tooltip{
     position:fixed; pointer-events:none; z-index:50; background:var(--surface-2); border:1px solid var(--border);
@@ -582,12 +582,10 @@ function tryLogin(email, senha){
 function initAuth(){
   var form = document.getElementById("login-form");
   var errBox = document.getElementById("login-error");
-  var saved = null;
-  try { saved = JSON.parse(localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY) || "null"); } catch(e){}
-  if (saved && saved.email) {
-    enterApp(saved);
-    return;
-  }
+
+  // Registered unconditionally — an earlier version returned before this point
+  // whenever a remembered session auto-logged the user in, which left both the
+  // login form and the Sair button with no click handler at all.
   form.addEventListener("submit", function(ev){
     ev.preventDefault();
     var email = document.getElementById("login-email").value;
@@ -614,6 +612,12 @@ function initAuth(){
     document.getElementById("login-screen").style.display = "flex";
     document.getElementById("login-form").reset();
   });
+
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY) || "null"); } catch(e){}
+  if (saved && saved.email) {
+    enterApp(saved);
+  }
 }
 
 function enterApp(user){
@@ -924,7 +928,7 @@ function renderTrendChart(){
   var n = monthly.length;
   var groupW = plotW / n;
   var barW = Math.max(4, Math.min(22, groupW * 0.32));
-  var barGap = 3;
+  var barGap = 5;
   function xGroupCenter(i){ return padL + groupW * (i + 0.5); }
   function yAt(v){ return padT + plotH - (v / niceMax) * plotH; }
 
@@ -976,6 +980,7 @@ function renderTrendChart(){
     svg.appendChild(lbl);
   });
 
+  var showLabels = barW >= 13;
   monthly.forEach(function(m, i){
     var cx = xGroupCenter(i);
     [["avR","--series-real", -1], ["avO","--series-orc", 1]].forEach(function(spec){
@@ -990,6 +995,15 @@ function renderTrendChart(){
       rect.setAttribute("rx", 3);
       rect.setAttribute("fill", css(spec[1]));
       svg.appendChild(rect);
+
+      if (showLabels){
+        var lbl = document.createElementNS(svgNS,"text");
+        lbl.setAttribute("x", x + barW/2); lbl.setAttribute("y", y - 4);
+        lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","bar-value-label");
+        lbl.setAttribute("fill", css(spec[1]));
+        lbl.textContent = fmtPct(v, 0);
+        svg.appendChild(lbl);
+      }
     });
 
     var hit = document.createElementNS(svgNS,"rect");
@@ -1005,18 +1019,6 @@ function renderTrendChart(){
     hit.addEventListener("mouseleave", hideTooltip);
     svg.appendChild(hit);
   });
-
-  // direct label on the last group's Realizado bar
-  var last = monthly[monthly.length - 1];
-  if (last.avR !== null){
-    var lr = document.createElementNS(svgNS,"text");
-    lr.setAttribute("x", xGroupCenter(monthly.length-1) - (barW/2 + barGap/2) - barW/2);
-    lr.setAttribute("y", yAt(last.avR) - 6);
-    lr.setAttribute("text-anchor","middle");
-    lr.setAttribute("class","direct-label"); lr.setAttribute("fill", css("--series-real"));
-    lr.textContent = fmtPct(last.avR, 1);
-    svg.appendChild(lr);
-  }
 
   host.appendChild(svg);
 }
@@ -1079,14 +1081,13 @@ function renderBarChart(){
         showTooltip(ev.clientX, ev.clientY, html);
       });
       rect.addEventListener("mouseleave", hideTooltip);
-    });
 
-    var valLbl = document.createElementNS(svgNS,"text");
-    var vR = l.avR || 0;
-    valLbl.setAttribute("x", xAt(vR) + 6); valLbl.setAttribute("y", y0 + barH/2 + 4);
-    valLbl.setAttribute("class","tick-label");
-    valLbl.textContent = fmtPct(l.avR, 1);
-    svg.appendChild(valLbl);
+      var valLbl = document.createElementNS(svgNS,"text");
+      valLbl.setAttribute("x", padL + w + 6); valLbl.setAttribute("y", y0 + spec[2] + barH/2 + 4);
+      valLbl.setAttribute("class","tick-label");
+      valLbl.textContent = fmtPct(v, 1);
+      svg.appendChild(valLbl);
+    });
   });
 
   host.appendChild(svg);
@@ -1142,7 +1143,7 @@ function renderYoYChart(monthly, years, host){
   var n = monthly.length, nSeries = years.length;
   var groupW = plotW / n;
   var barW = Math.max(4, Math.min(20, (groupW * 0.7) / nSeries));
-  var barGap = 3;
+  var barGap = 5;
   function xGroupCenter(i){ return padL + groupW * (i + 0.5); }
   function yAt(v){ return padT + plotH - (v / niceMax) * plotH; }
 
@@ -1191,6 +1192,7 @@ function renderYoYChart(monthly, years, host){
     svg.appendChild(lbl);
   });
 
+  var showLabels = barW >= 13;
   monthly.forEach(function(m, i){
     var cx = xGroupCenter(i);
     var totalW = barW * nSeries + barGap * (nSeries - 1);
@@ -1200,12 +1202,22 @@ function renderYoYChart(monthly, years, host){
       var x = startX + si * (barW + barGap);
       var y = yAt(val.avR);
       var h = Math.max(0, yAt(0) - y);
+      var color = css(YOY_COLOR_VARS[si % YOY_COLOR_VARS.length]);
       var rect = document.createElementNS(svgNS,"rect");
       rect.setAttribute("x", x); rect.setAttribute("y", y);
       rect.setAttribute("width", barW); rect.setAttribute("height", h);
       rect.setAttribute("rx", 3);
-      rect.setAttribute("fill", css(YOY_COLOR_VARS[si % YOY_COLOR_VARS.length]));
+      rect.setAttribute("fill", color);
       svg.appendChild(rect);
+
+      if (showLabels){
+        var lbl = document.createElementNS(svgNS,"text");
+        lbl.setAttribute("x", x + barW/2); lbl.setAttribute("y", y - 4);
+        lbl.setAttribute("text-anchor","middle"); lbl.setAttribute("class","bar-value-label");
+        lbl.setAttribute("fill", color);
+        lbl.textContent = fmtPct(val.avR, 0);
+        svg.appendChild(lbl);
+      }
     });
 
     var hit = document.createElementNS(svgNS,"rect");
