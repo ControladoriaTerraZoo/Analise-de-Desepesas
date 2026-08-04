@@ -301,6 +301,12 @@
 
   /* ---------- Data source panel ---------- */
   /* ---------- Expense drill-down panel ---------- */
+  .expense-receita-line{
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin-top:12px;
+    font-size:13px; color:var(--text-secondary);
+  }
+  .expense-receita-line strong{ color:var(--text-primary); font-size:14px; }
+  .expense-receita-line .sep{ color:var(--text-muted); margin:0 4px; }
   .expense-controls{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px; margin:12px 0 16px; }
   .expense-field{ min-width:0; flex:1 1 260px; }
   .expense-field label{ display:block; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; }
@@ -546,6 +552,13 @@
             <h2>Análise por Despesa</h2>
             <p>AV% de uma linha específica do SG&amp;A sobre a Receita Líquida, por loja e por mês</p>
           </div>
+        </div>
+        <div class="expense-receita-line">
+          <span>Receita Líquida — Realizado</span>
+          <strong id="expense-receita-r">—</strong>
+          <span class="sep">·</span>
+          <span>Orçado</span>
+          <strong id="expense-receita-o">—</strong>
         </div>
         <div class="expense-controls">
           <div class="expense-field">
@@ -926,7 +939,7 @@ function aggregateByMonth(rows){
   return keys.map(function(k){
     var b = buckets[k];
     var t = aggregateTotals(b.rows);
-    return { ano:b.ano, mes:b.mes, label: MONTH_NAMES[b.mes] + "/" + String(b.ano).slice(2), avR:t.avR, avO:t.avO };
+    return { ano:b.ano, mes:b.mes, label: MONTH_NAMES[b.mes] + "/" + String(b.ano).slice(2), avR:t.avR, avO:t.avO, recR:t.recR, recO:t.recO };
   });
 }
 
@@ -961,7 +974,10 @@ function computeYoYMonthly(rows, years){
     years.forEach(function(y){
       var subset = buckets[m][y] || [];
       var t = aggregateTotals(subset);
-      entry.values.push({ ano:y, avR: subset.length ? t.avR : null });
+      entry.values.push({
+        ano:y, avR: subset.length ? t.avR : null,
+        recR: subset.length ? t.recR : null, recO: subset.length ? t.recO : null
+      });
     });
     return entry;
   });
@@ -1285,7 +1301,9 @@ function renderTrendChart(){
     hit.addEventListener("mousemove", function(ev){
       var html = '<div class="t-title">' + m.label + '</div>' +
         '<div class="t-row"><span>Realizado</span><strong>' + fmtPct(m.avR) + '</strong></div>' +
-        '<div class="t-row"><span>Orçado</span><strong>' + fmtPct(m.avO) + '</strong></div>';
+        '<div class="t-row"><span>Orçado</span><strong>' + fmtPct(m.avO) + '</strong></div>' +
+        '<div class="t-row"><span>Receita Líq. Realizado</span><strong>' + fmtBRL(m.recR) + '</strong></div>' +
+        '<div class="t-row"><span>Receita Líq. Orçado</span><strong>' + fmtBRL(m.recO) + '</strong></div>';
       showTooltip(ev.clientX, ev.clientY, html);
     });
     hit.addEventListener("mouseleave", hideTooltip);
@@ -1299,6 +1317,7 @@ function renderTrendChart(){
 function renderBarChart(){
   var rows = getFilteredRows();
   var lines = aggregateByLine(rows).slice().sort(function(a,b){ return (b.avR||0) - (a.avR||0); });
+  var tot = aggregateTotals(rows);
   var host = document.getElementById("chart-bars");
   host.innerHTML = "";
 
@@ -1349,7 +1368,9 @@ function renderBarChart(){
       rect.addEventListener("mousemove", function(ev){
         var html = '<div class="t-title">' + l.label + '</div>' +
           '<div class="t-row"><span>Realizado</span><strong>' + fmtPct(l.avR) + '</strong></div>' +
-          '<div class="t-row"><span>Orçado</span><strong>' + fmtPct(l.avO) + '</strong></div>';
+          '<div class="t-row"><span>Orçado</span><strong>' + fmtPct(l.avO) + '</strong></div>' +
+          '<div class="t-row"><span>Receita Líq. Realizado</span><strong>' + fmtBRL(tot.recR) + '</strong></div>' +
+          '<div class="t-row"><span>Receita Líq. Orçado</span><strong>' + fmtBRL(tot.recO) + '</strong></div>';
         showTooltip(ev.clientX, ev.clientY, html);
       });
       rect.addEventListener("mouseleave", hideTooltip);
@@ -1498,7 +1519,9 @@ function renderYoYChart(monthly, years, host){
     hit.setAttribute("fill","transparent");
     hit.addEventListener("mousemove", function(ev){
       var rowsHtml = m.values.map(function(val){
-        return '<div class="t-row"><span>' + val.ano + '</span><strong>' + fmtPct(val.avR) + '</strong></div>';
+        return '<div class="t-row"><span>AV% ' + val.ano + '</span><strong>' + fmtPct(val.avR) + '</strong></div>' +
+          '<div class="t-row"><span>Receita Líq. Real. ' + val.ano + '</span><strong>' + fmtBRL(val.recR) + '</strong></div>' +
+          '<div class="t-row"><span>Receita Líq. Orç. ' + val.ano + '</span><strong>' + fmtBRL(val.recO) + '</strong></div>';
       }).join("");
       showTooltip(ev.clientX, ev.clientY, '<div class="t-title">' + m.label + '</div>' + rowsHtml);
     });
@@ -1583,7 +1606,14 @@ function avForMetric(metric, d, rec){
   return recV > 0 ? Math.abs(d[metric]) / recV * 100 : null;
 }
 
+function renderExpenseReceitaLine(){
+  var tot = aggregateTotals(getFilteredRows());
+  document.getElementById("expense-receita-r").textContent = fmtBRL(tot.recR);
+  document.getElementById("expense-receita-o").textContent = fmtBRL(tot.recO);
+}
+
 function renderExpensePanel(){
+  renderExpenseReceitaLine();
   var g = state.granular;
   var select = document.getElementById("expense-select");
   if (!select.options.length) return;
