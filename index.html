@@ -2628,7 +2628,6 @@ function loadFromGoogleSheets(url2025, url2026){
     renderDashboardBody();
     var granWarn = granularRows.length ? "" : " Atenção: nenhum detalhamento por despesa encontrado — Análise por Despesa e Loja x Despesa ficarão vazias.";
     statusEl.textContent = "Dados carregados do Google Sheets com sucesso (" + topRows.length + " combinações mês/loja/canal)." + granWarn;
-    setBanner("ok", "Exibindo dados ao vivo do Google Sheets.", true);
   }).catch(function(err){
     statusEl.textContent = "Falha ao carregar do Google Sheets: " + err.message + ". Mantendo o snapshot local.";
     setBanner("warn", "Não foi possível carregar do Google Sheets (" + err.message + "). Exibindo o snapshot local (" + window.__SNAPSHOT_DATE__ + ").", true);
