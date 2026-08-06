@@ -2069,14 +2069,17 @@ function renderExpenseRSPanel(){
   thead.appendChild(el("th", {}, ["Loja"]));
   months.forEach(function(m, mi){
     thead.appendChild(el("th", {}, [m.label]));
-    if (yearEnds.indexOf(mi) !== -1) thead.appendChild(el("th", { class:"total-col" }, ["Média " + m.ano]));
+    if (yearEnds.indexOf(mi) !== -1){
+      thead.appendChild(el("th", { class:"total-col" }, ["Total " + m.ano]));
+      thead.appendChild(el("th", { class:"total-col" }, ["Média " + m.ano]));
+    }
   });
 
   var tbody = document.getElementById("expense-rs-table-body");
   tbody.innerHTML = "";
 
   if (!months.length || !lojaRows.length){
-    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length + yearEnds.length + 1) }, ["Sem dados para os filtros selecionados."]) ]));
+    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length + yearEnds.length*2 + 1) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
 
@@ -2087,15 +2090,21 @@ function renderExpenseRSPanel(){
     });
   });
 
+  function sumOf(values){
+    return values.reduce(function(a,b){ return a + (b || 0); }, 0);
+  }
+
   var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
     var cells = [ el("td", {}, [l.name]) ];
-    // Média <ano>: plain average of that year's monthly R$ values, skipping months with no record.
+    // Total <ano>: sum of that year's monthly R$ values. Média <ano>: plain average
+    // of the same values, skipping months with no record.
     var yearValues = [];
     months.forEach(function(m, mi){
       cells.push(el("td", {}, [fmtBRL(grid[li][mi])]));
       yearValues.push(grid[li][mi]);
       if (yearEnds.indexOf(mi) !== -1){
+        cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(sumOf(yearValues))]) ]));
         cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearValues))]) ]));
         yearValues = [];
       }
@@ -2124,6 +2133,7 @@ function renderExpenseRSPanel(){
     yearMonthlyTotals.push(av);
     totalCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(av)]) ]));
     if (yearEnds.indexOf(mi) !== -1){
+      totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(sumOf(yearMonthlyTotals))]) ]));
       totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearMonthlyTotals))]) ]));
       yearMonthlyTotals = [];
     }
