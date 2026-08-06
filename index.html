@@ -298,6 +298,7 @@
   table.sga-table tbody tr.total-row{ font-weight:700; border-top:1px solid var(--axis); border-bottom:none; }
   table.sga-table tbody tr.receita-row{ background:var(--chip-bg); }
   table.sga-table td, table.sga-table th{ font-variant-numeric:tabular-nums; }
+  table.sga-table .total-col{ border-left:2px solid var(--axis); background:var(--chip-bg); }
 
   /* ---------- Data source panel ---------- */
   /* ---------- Expense drill-down panel ---------- */
@@ -1918,12 +1919,13 @@ function renderExpensePanel(){
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
   months.forEach(function(m){ thead.appendChild(el("th", {}, [m.label])); });
+  thead.appendChild(el("th", { class:"total-col" }, ["Total"]));
 
   var tbody = document.getElementById("expense-table-body");
   tbody.innerHTML = "";
 
   if (!months.length || !lojaRows.length){
-    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+1) }, ["Sem dados para os filtros selecionados."]) ]));
+    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+2) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
 
@@ -1942,6 +1944,19 @@ function renderExpensePanel(){
     grid[li].forEach(function(av){
       cells.push(el("td", {}, [fmt(av)]));
     });
+    // Total column: AV% recomputed from the period's summed despesa/receita, not an
+    // average of the monthly AV% values — matching how the bottom Total row already
+    // aggregates across lojas for a single month.
+    var dSum = { r:0, o:0 }, recSum = { r:0, o:0 }, found = false;
+    months.forEach(function(m){
+      var key = m.ano + "|" + m.mes + "|" + l.idx;
+      var recKey = m.ano + "|" + m.mes + "|" + l.name;
+      var d = despesaByKey[key], rec = receitaByKey[recKey];
+      if (d){ dSum.r += d.r; dSum.o += d.o; found = true; }
+      if (rec){ recSum.r += rec.r; recSum.o += rec.o; }
+    });
+    var totalAv = found ? avForMetric(metric, dSum, recSum) : null;
+    cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(totalAv)]) ]));
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
       var raw = months.map(function(m){
@@ -1955,6 +1970,7 @@ function renderExpensePanel(){
   });
 
   var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
+  var grandDSum = { r:0, o:0 }, grandRecSum = { r:0, o:0 }, grandFound = false;
   months.forEach(function(m, mi){
     var dSum = { r:0, o:0 }, dFound = false;
     lojaRows.forEach(function(l){
@@ -1964,7 +1980,11 @@ function renderExpensePanel(){
     });
     var av = dFound ? avForMetric(metric, dSum, receitaMonthly[mi]) : null;
     totalCells.push(el("td", {}, [ el("strong", {}, [fmt(av)]) ]));
+    if (dFound){ grandDSum.r += dSum.r; grandDSum.o += dSum.o; grandFound = true; }
+    grandRecSum.r += receitaMonthly[mi].r; grandRecSum.o += receitaMonthly[mi].o;
   });
+  var grandAv = grandFound ? avForMetric(metric, grandDSum, grandRecSum) : null;
+  totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(grandAv)]) ]));
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
 }
 
@@ -1973,6 +1993,14 @@ function rsForMetric(metric, d){
   if (!d) return null;
   if (metric === "gap") return Math.abs(d.r) - Math.abs(d.o);
   return d[metric];
+}
+
+// Plain arithmetic mean over the months that actually have a value — months with no
+// record (store not open yet, etc.) are skipped rather than treated as zero.
+function averageOf(values){
+  var valid = values.filter(function(v){ return v !== null && v !== undefined; });
+  if (!valid.length) return null;
+  return valid.reduce(function(a,b){ return a+b; }, 0) / valid.length;
 }
 
 function renderExpenseRSPanel(){
@@ -2010,12 +2038,13 @@ function renderExpenseRSPanel(){
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
   months.forEach(function(m){ thead.appendChild(el("th", {}, [m.label])); });
+  thead.appendChild(el("th", { class:"total-col" }, ["Média"]));
 
   var tbody = document.getElementById("expense-rs-table-body");
   tbody.innerHTML = "";
 
   if (!months.length || !lojaRows.length){
-    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+1) }, ["Sem dados para os filtros selecionados."]) ]));
+    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+2) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
 
@@ -2032,6 +2061,7 @@ function renderExpenseRSPanel(){
     grid[li].forEach(function(av){
       cells.push(el("td", {}, [fmtBRL(av)]));
     });
+    cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(grid[li]))]) ]));
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
       var raw = months.map(function(m){
@@ -2044,6 +2074,7 @@ function renderExpenseRSPanel(){
   });
 
   var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
+  var monthlyTotals = [];
   months.forEach(function(m){
     var dSum = { r:0, o:0 }, dFound = false;
     lojaRows.forEach(function(l){
@@ -2052,8 +2083,10 @@ function renderExpenseRSPanel(){
       if (d){ dSum.r += d.r; dSum.o += d.o; dFound = true; }
     });
     var av = dFound ? rsForMetric(metric, dSum) : null;
+    monthlyTotals.push(av);
     totalCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(av)]) ]));
   });
+  totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(monthlyTotals))]) ]));
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
 }
 
