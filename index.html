@@ -1840,20 +1840,30 @@ function avForMetric(metric, d, rec){
 function renderExpenseReceitaLine(){
   var months = aggregateByMonth(getFilteredRows());
   var metric = state.expenseMetric;
+  var yearEnds = yearBoundaries(months);
 
   var thead = document.getElementById("expense-receita-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Receita Líquida"]));
-  months.forEach(function(m){ thead.appendChild(el("th", {}, [m.label])); });
+  months.forEach(function(m, mi){
+    thead.appendChild(el("th", {}, [m.label]));
+    if (yearEnds.indexOf(mi) !== -1) thead.appendChild(el("th", { class:"total-col" }, ["Total " + m.ano]));
+  });
 
   var tbody = document.getElementById("expense-receita-table-body");
   tbody.innerHTML = "";
   if (!months.length) return;
 
   var cells = [ el("td", {}, []) ];
-  months.forEach(function(m){
+  var yearSum = 0;
+  months.forEach(function(m, mi){
     var v = metric === "gap" ? (m.recR - m.recO) : (metric === "o" ? m.recO : m.recR);
     cells.push(el("td", {}, [ el("strong", {}, [fmtBRL(v)]) ]));
+    yearSum += v;
+    if (yearEnds.indexOf(mi) !== -1){
+      cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(yearSum)]) ]));
+      yearSum = 0;
+    }
   });
   tbody.appendChild(el("tr", { class:"receita-row" }, cells));
 }
@@ -1935,13 +1945,12 @@ function renderExpensePanel(){
     thead.appendChild(el("th", {}, [m.label]));
     if (yearEnds.indexOf(mi) !== -1) thead.appendChild(el("th", { class:"total-col" }, ["Total " + m.ano]));
   });
-  thead.appendChild(el("th", { class:"total-col" }, ["Total"]));
 
   var tbody = document.getElementById("expense-table-body");
   tbody.innerHTML = "";
 
   if (!months.length || !lojaRows.length){
-    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length + yearEnds.length + 2) }, ["Sem dados para os filtros selecionados."]) ]));
+    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length + yearEnds.length + 1) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
 
@@ -1973,19 +1982,6 @@ function renderExpensePanel(){
         yearDSum = { r:0, o:0 }; yearRecSum = { r:0, o:0 }; yearFound = false;
       }
     });
-    // Total column: AV% recomputed from the period's summed despesa/receita, not an
-    // average of the monthly AV% values — matching how the bottom Total row already
-    // aggregates across lojas for a single month.
-    var dSum = { r:0, o:0 }, recSum = { r:0, o:0 }, found = false;
-    months.forEach(function(m){
-      var key = m.ano + "|" + m.mes + "|" + l.idx;
-      var recKey = m.ano + "|" + m.mes + "|" + l.name;
-      var d = despesaByKey[key], rec = receitaByKey[recKey];
-      if (d){ dSum.r += d.r; dSum.o += d.o; found = true; }
-      if (rec){ recSum.r += rec.r; recSum.o += rec.o; }
-    });
-    var totalAv = found ? avForMetric(metric, dSum, recSum) : null;
-    cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(totalAv)]) ]));
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
       var raw = months.map(function(m){
@@ -1999,7 +1995,6 @@ function renderExpensePanel(){
   });
 
   var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
-  var grandDSum = { r:0, o:0 }, grandRecSum = { r:0, o:0 }, grandFound = false;
   var yearDSum2 = { r:0, o:0 }, yearRecSum2 = { r:0, o:0 }, yearFound2 = false;
   months.forEach(function(m, mi){
     var dSum = { r:0, o:0 }, dFound = false;
@@ -2010,8 +2005,7 @@ function renderExpensePanel(){
     });
     var av = dFound ? avForMetric(metric, dSum, receitaMonthly[mi]) : null;
     totalCells.push(el("td", {}, [ el("strong", {}, [fmt(av)]) ]));
-    if (dFound){ grandDSum.r += dSum.r; grandDSum.o += dSum.o; grandFound = true; yearDSum2.r += dSum.r; yearDSum2.o += dSum.o; yearFound2 = true; }
-    grandRecSum.r += receitaMonthly[mi].r; grandRecSum.o += receitaMonthly[mi].o;
+    if (dFound){ yearDSum2.r += dSum.r; yearDSum2.o += dSum.o; yearFound2 = true; }
     yearRecSum2.r += receitaMonthly[mi].r; yearRecSum2.o += receitaMonthly[mi].o;
     if (yearEnds.indexOf(mi) !== -1){
       var yearAv2 = yearFound2 ? avForMetric(metric, yearDSum2, yearRecSum2) : null;
@@ -2019,8 +2013,6 @@ function renderExpensePanel(){
       yearDSum2 = { r:0, o:0 }; yearRecSum2 = { r:0, o:0 }; yearFound2 = false;
     }
   });
-  var grandAv = grandFound ? avForMetric(metric, grandDSum, grandRecSum) : null;
-  totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(grandAv)]) ]));
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
 }
 
@@ -2094,18 +2086,24 @@ function renderExpenseRSPanel(){
     return sum;
   });
 
+  var yearEnds = yearBoundaries(months);
+
   var thead = document.getElementById("expense-rs-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
-  months.forEach(function(m){ thead.appendChild(el("th", {}, [m.label])); });
-  thead.appendChild(el("th", { class:"total-col" }, ["Média"]));
-  thead.appendChild(el("th", { class:"total-col" }, ["Média %"]));
+  months.forEach(function(m, mi){
+    thead.appendChild(el("th", {}, [m.label]));
+    if (yearEnds.indexOf(mi) !== -1){
+      thead.appendChild(el("th", { class:"total-col" }, ["Média " + m.ano]));
+      thead.appendChild(el("th", { class:"total-col" }, ["Média % " + m.ano]));
+    }
+  });
 
   var tbody = document.getElementById("expense-rs-table-body");
   tbody.innerHTML = "";
 
   if (!months.length || !lojaRows.length){
-    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+3) }, ["Sem dados para os filtros selecionados."]) ]));
+    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length + yearEnds.length*2 + 1) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
 
@@ -2119,23 +2117,26 @@ function renderExpenseRSPanel(){
   var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
     var cells = [ el("td", {}, [l.name]) ];
-    grid[li].forEach(function(av){
-      cells.push(el("td", {}, [fmtBRL(av)]));
-    });
-    cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(grid[li]))]) ]));
-    // Média %: average despesa over the months it occurred, divided by the average
-    // Receita Líquida over those same months — expressed as sum/sum, which is
-    // arithmetically identical and avoids skewing the ratio with unequal month counts.
-    var dSum = { r:0, o:0 }, recSum = { r:0, o:0 }, found = false;
-    months.forEach(function(m){
+    // Média <ano>: plain average of that year's monthly R$ values. Média % <ano>:
+    // average despesa divided by average Receita Líquida over the same months,
+    // expressed as sum/sum (arithmetically identical, avoids skew from unequal counts).
+    var yearValues = [];
+    var yearDSum = { r:0, o:0 }, yearRecSum = { r:0, o:0 }, yearFound = false;
+    months.forEach(function(m, mi){
+      cells.push(el("td", {}, [fmtBRL(grid[li][mi])]));
+      yearValues.push(grid[li][mi]);
       var key = m.ano + "|" + m.mes + "|" + l.idx;
       var recKey = m.ano + "|" + m.mes + "|" + l.name;
       var d = despesaByKey[key], rec = receitaByKey[recKey];
-      if (d){ dSum.r += d.r; dSum.o += d.o; found = true; }
-      if (rec){ recSum.r += rec.r; recSum.o += rec.o; }
+      if (d){ yearDSum.r += d.r; yearDSum.o += d.o; yearFound = true; }
+      if (rec){ yearRecSum.r += rec.r; yearRecSum.o += rec.o; }
+      if (yearEnds.indexOf(mi) !== -1){
+        cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearValues))]) ]));
+        var yearRatio = yearFound ? avForMetric(metric, yearDSum, yearRecSum) : null;
+        cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtPctCol(yearRatio)]) ]));
+        yearValues = []; yearDSum = { r:0, o:0 }; yearRecSum = { r:0, o:0 }; yearFound = false;
+      }
     });
-    var ratioAv = found ? avForMetric(metric, dSum, recSum) : null;
-    cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtPctCol(ratioAv)]) ]));
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
       var raw = months.map(function(m){
@@ -2148,8 +2149,8 @@ function renderExpenseRSPanel(){
   });
 
   var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
-  var monthlyTotals = [];
-  var grandDSum = { r:0, o:0 }, grandRecSum = { r:0, o:0 }, grandFound = false;
+  var yearMonthlyTotals = [];
+  var yearDSum2 = { r:0, o:0 }, yearRecSum2 = { r:0, o:0 }, yearFound2 = false;
   months.forEach(function(m, mi){
     var dSum = { r:0, o:0 }, dFound = false;
     lojaRows.forEach(function(l){
@@ -2158,14 +2159,17 @@ function renderExpenseRSPanel(){
       if (d){ dSum.r += d.r; dSum.o += d.o; dFound = true; }
     });
     var av = dFound ? rsForMetric(metric, dSum) : null;
-    monthlyTotals.push(av);
+    yearMonthlyTotals.push(av);
     totalCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(av)]) ]));
-    if (dFound){ grandDSum.r += dSum.r; grandDSum.o += dSum.o; grandFound = true; }
-    grandRecSum.r += receitaMonthly[mi].r; grandRecSum.o += receitaMonthly[mi].o;
+    if (dFound){ yearDSum2.r += dSum.r; yearDSum2.o += dSum.o; yearFound2 = true; }
+    yearRecSum2.r += receitaMonthly[mi].r; yearRecSum2.o += receitaMonthly[mi].o;
+    if (yearEnds.indexOf(mi) !== -1){
+      totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearMonthlyTotals))]) ]));
+      var yearAv2 = yearFound2 ? avForMetric(metric, yearDSum2, yearRecSum2) : null;
+      totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtPctCol(yearAv2)]) ]));
+      yearMonthlyTotals = []; yearDSum2 = { r:0, o:0 }; yearRecSum2 = { r:0, o:0 }; yearFound2 = false;
+    }
   });
-  totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(monthlyTotals))]) ]));
-  var grandAv = grandFound ? avForMetric(metric, grandDSum, grandRecSum) : null;
-  totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtPctCol(grandAv)]) ]));
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
 }
 
