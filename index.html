@@ -1858,6 +1858,17 @@ function renderExpenseReceitaLine(){
   tbody.appendChild(el("tr", { class:"receita-row" }, cells));
 }
 
+// Indices in a chronologically-sorted `months` array where a year's block of
+// columns ends (i.e. the last month before the year changes, or the last month
+// overall) — used to insert a per-year subtotal column right after each year.
+function yearBoundaries(months){
+  var idxs = [];
+  months.forEach(function(m, i){
+    if (i === months.length - 1 || months[i+1].ano !== m.ano) idxs.push(i);
+  });
+  return idxs;
+}
+
 function renderExpensePanel(){
   renderExpenseReceitaLine();
   var g = state.granular;
@@ -1915,17 +1926,22 @@ function renderExpensePanel(){
     return sum;
   });
 
+  var yearEnds = yearBoundaries(months);
+
   var thead = document.getElementById("expense-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
-  months.forEach(function(m){ thead.appendChild(el("th", {}, [m.label])); });
+  months.forEach(function(m, mi){
+    thead.appendChild(el("th", {}, [m.label]));
+    if (yearEnds.indexOf(mi) !== -1) thead.appendChild(el("th", { class:"total-col" }, ["Total " + m.ano]));
+  });
   thead.appendChild(el("th", { class:"total-col" }, ["Total"]));
 
   var tbody = document.getElementById("expense-table-body");
   tbody.innerHTML = "";
 
   if (!months.length || !lojaRows.length){
-    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length+2) }, ["Sem dados para os filtros selecionados."]) ]));
+    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length + yearEnds.length + 2) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
 
@@ -1941,8 +1957,21 @@ function renderExpensePanel(){
   var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
     var cells = [ el("td", {}, [l.name]) ];
-    grid[li].forEach(function(av){
-      cells.push(el("td", {}, [fmt(av)]));
+    // Per-year Total column: AV% recomputed from that year's summed despesa/receita
+    // (sum/sum, not an average of the monthly AV% values), reset after each year break.
+    var yearDSum = { r:0, o:0 }, yearRecSum = { r:0, o:0 }, yearFound = false;
+    months.forEach(function(m, mi){
+      cells.push(el("td", {}, [fmt(grid[li][mi])]));
+      var key = m.ano + "|" + m.mes + "|" + l.idx;
+      var recKey = m.ano + "|" + m.mes + "|" + l.name;
+      var d = despesaByKey[key], rec = receitaByKey[recKey];
+      if (d){ yearDSum.r += d.r; yearDSum.o += d.o; yearFound = true; }
+      if (rec){ yearRecSum.r += rec.r; yearRecSum.o += rec.o; }
+      if (yearEnds.indexOf(mi) !== -1){
+        var yearAv = yearFound ? avForMetric(metric, yearDSum, yearRecSum) : null;
+        cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(yearAv)]) ]));
+        yearDSum = { r:0, o:0 }; yearRecSum = { r:0, o:0 }; yearFound = false;
+      }
     });
     // Total column: AV% recomputed from the period's summed despesa/receita, not an
     // average of the monthly AV% values — matching how the bottom Total row already
@@ -1971,6 +2000,7 @@ function renderExpensePanel(){
 
   var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
   var grandDSum = { r:0, o:0 }, grandRecSum = { r:0, o:0 }, grandFound = false;
+  var yearDSum2 = { r:0, o:0 }, yearRecSum2 = { r:0, o:0 }, yearFound2 = false;
   months.forEach(function(m, mi){
     var dSum = { r:0, o:0 }, dFound = false;
     lojaRows.forEach(function(l){
@@ -1980,8 +2010,14 @@ function renderExpensePanel(){
     });
     var av = dFound ? avForMetric(metric, dSum, receitaMonthly[mi]) : null;
     totalCells.push(el("td", {}, [ el("strong", {}, [fmt(av)]) ]));
-    if (dFound){ grandDSum.r += dSum.r; grandDSum.o += dSum.o; grandFound = true; }
+    if (dFound){ grandDSum.r += dSum.r; grandDSum.o += dSum.o; grandFound = true; yearDSum2.r += dSum.r; yearDSum2.o += dSum.o; yearFound2 = true; }
     grandRecSum.r += receitaMonthly[mi].r; grandRecSum.o += receitaMonthly[mi].o;
+    yearRecSum2.r += receitaMonthly[mi].r; yearRecSum2.o += receitaMonthly[mi].o;
+    if (yearEnds.indexOf(mi) !== -1){
+      var yearAv2 = yearFound2 ? avForMetric(metric, yearDSum2, yearRecSum2) : null;
+      totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(yearAv2)]) ]));
+      yearDSum2 = { r:0, o:0 }; yearRecSum2 = { r:0, o:0 }; yearFound2 = false;
+    }
   });
   var grandAv = grandFound ? avForMetric(metric, grandDSum, grandRecSum) : null;
   totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(grandAv)]) ]));
