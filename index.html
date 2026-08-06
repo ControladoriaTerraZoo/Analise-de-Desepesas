@@ -2037,7 +2037,6 @@ function renderExpenseRSPanel(){
   if (!select.options.length) return;
   var despesaIdx = parseInt(select.value, 10);
   var metric = state.expenseMetric;
-  var fmtPctCol = metric === "gap" ? fmtPP : fmtPct;
 
   var allowedLoja = {}, allowedCanal = {};
   g.lojas.forEach(function(name, idx){
@@ -2056,35 +2055,12 @@ function renderExpenseRSPanel(){
     despesaByKey[key].r += r; despesaByKey[key].o += o;
   });
 
-  // Receita Líquida {r,o} per (ano,mes,loja name) — needed for the "Média %" column,
-  // which divides the average despesa by the average Receita Líquida over the same months.
-  var receitaByKey = {};
-  getFilteredRows().forEach(function(row){
-    var key = row.ano + "|" + row.mes + "|" + row.loja;
-    if (!receitaByKey[key]) receitaByKey[key] = { r:0, o:0 };
-    if (row.receita_liquida){
-      receitaByKey[key].r += row.receita_liquida.r || 0;
-      receitaByKey[key].o += row.receita_liquida.o || 0;
-    }
-  });
-
   var months = aggregateByMonth(getFilteredRows());
 
   var lojaRows = g.lojas
     .map(function(name, idx){ return { name:name, idx:idx }; })
     .filter(function(l){ return allowedLoja[l.idx]; })
     .sort(function(a,b){ return a.name.localeCompare(b.name, "pt-BR"); });
-
-  // Receita Líquida per month, summed across the allowed lojas.
-  var receitaMonthly = months.map(function(m){
-    var sum = { r:0, o:0 };
-    lojaRows.forEach(function(l){
-      var recKey = m.ano + "|" + m.mes + "|" + l.name;
-      var rec = receitaByKey[recKey];
-      if (rec){ sum.r += rec.r; sum.o += rec.o; }
-    });
-    return sum;
-  });
 
   var yearEnds = yearBoundaries(months);
 
@@ -2093,17 +2069,14 @@ function renderExpenseRSPanel(){
   thead.appendChild(el("th", {}, ["Loja"]));
   months.forEach(function(m, mi){
     thead.appendChild(el("th", {}, [m.label]));
-    if (yearEnds.indexOf(mi) !== -1){
-      thead.appendChild(el("th", { class:"total-col" }, ["Média " + m.ano]));
-      thead.appendChild(el("th", { class:"total-col" }, ["Média % " + m.ano]));
-    }
+    if (yearEnds.indexOf(mi) !== -1) thead.appendChild(el("th", { class:"total-col" }, ["Média " + m.ano]));
   });
 
   var tbody = document.getElementById("expense-rs-table-body");
   tbody.innerHTML = "";
 
   if (!months.length || !lojaRows.length){
-    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length + yearEnds.length*2 + 1) }, ["Sem dados para os filtros selecionados."]) ]));
+    tbody.appendChild(el("tr", {}, [ el("td", { colspan:String(months.length + yearEnds.length + 1) }, ["Sem dados para os filtros selecionados."]) ]));
     return;
   }
 
@@ -2117,24 +2090,14 @@ function renderExpenseRSPanel(){
   var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
     var cells = [ el("td", {}, [l.name]) ];
-    // Média <ano>: plain average of that year's monthly R$ values. Média % <ano>:
-    // average despesa divided by average Receita Líquida over the same months,
-    // expressed as sum/sum (arithmetically identical, avoids skew from unequal counts).
+    // Média <ano>: plain average of that year's monthly R$ values, skipping months with no record.
     var yearValues = [];
-    var yearDSum = { r:0, o:0 }, yearRecSum = { r:0, o:0 }, yearFound = false;
     months.forEach(function(m, mi){
       cells.push(el("td", {}, [fmtBRL(grid[li][mi])]));
       yearValues.push(grid[li][mi]);
-      var key = m.ano + "|" + m.mes + "|" + l.idx;
-      var recKey = m.ano + "|" + m.mes + "|" + l.name;
-      var d = despesaByKey[key], rec = receitaByKey[recKey];
-      if (d){ yearDSum.r += d.r; yearDSum.o += d.o; yearFound = true; }
-      if (rec){ yearRecSum.r += rec.r; yearRecSum.o += rec.o; }
       if (yearEnds.indexOf(mi) !== -1){
         cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearValues))]) ]));
-        var yearRatio = yearFound ? avForMetric(metric, yearDSum, yearRecSum) : null;
-        cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtPctCol(yearRatio)]) ]));
-        yearValues = []; yearDSum = { r:0, o:0 }; yearRecSum = { r:0, o:0 }; yearFound = false;
+        yearValues = [];
       }
     });
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
@@ -2150,7 +2113,6 @@ function renderExpenseRSPanel(){
 
   var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
   var yearMonthlyTotals = [];
-  var yearDSum2 = { r:0, o:0 }, yearRecSum2 = { r:0, o:0 }, yearFound2 = false;
   months.forEach(function(m, mi){
     var dSum = { r:0, o:0 }, dFound = false;
     lojaRows.forEach(function(l){
@@ -2161,13 +2123,9 @@ function renderExpenseRSPanel(){
     var av = dFound ? rsForMetric(metric, dSum) : null;
     yearMonthlyTotals.push(av);
     totalCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(av)]) ]));
-    if (dFound){ yearDSum2.r += dSum.r; yearDSum2.o += dSum.o; yearFound2 = true; }
-    yearRecSum2.r += receitaMonthly[mi].r; yearRecSum2.o += receitaMonthly[mi].o;
     if (yearEnds.indexOf(mi) !== -1){
       totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearMonthlyTotals))]) ]));
-      var yearAv2 = yearFound2 ? avForMetric(metric, yearDSum2, yearRecSum2) : null;
-      totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtPctCol(yearAv2)]) ]));
-      yearMonthlyTotals = []; yearDSum2 = { r:0, o:0 }; yearRecSum2 = { r:0, o:0 }; yearFound2 = false;
+      yearMonthlyTotals = [];
     }
   });
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
