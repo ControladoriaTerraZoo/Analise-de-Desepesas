@@ -353,6 +353,11 @@
   }
   .seg-btn.active{ background:var(--v2); color:#fff; }
   .seg-btn:not(.active):hover{ background:var(--chip-bg); }
+  .expense-totals-toggle{
+    display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600;
+    color:var(--text-secondary); cursor:pointer; padding-bottom:9px; white-space:nowrap;
+  }
+  .expense-totals-toggle input{ width:15px; height:15px; accent-color:var(--v2); cursor:pointer; }
 
   /* ---------- Expense drill-down modal ---------- */
   #expense-table tbody tr.loja-row, #expense-rs-table tbody tr.loja-row{ cursor:pointer; }
@@ -629,6 +634,10 @@
             <button type="button" class="seg-btn" data-metric="o">Orçado</button>
             <button type="button" class="seg-btn" data-metric="gap">Gap</button>
           </div>
+          <label class="expense-totals-toggle" for="expense-totals-end">
+            <input type="checkbox" id="expense-totals-end">
+            Mover totais para o final
+          </label>
         </div>
         <div class="table-wrap">
           <table class="sga-table" id="expense-table">
@@ -823,6 +832,7 @@ var state = {
   options: { ano:[], mes:[], loja:[], canal:[], regiao:[] },
   granular: window.__GRANULAR__ || { lojas:[], canais:[], despesas:[], despesaSubgroup:[], rows:[] },
   expenseMetric: "r",
+  expenseTotalsAtEnd: false,
   matrixMetric: "r"
 };
 
@@ -1823,6 +1833,12 @@ function initExpensePanel(){
     renderExpensePanel();
     renderExpenseRSPanel();
   });
+
+  document.getElementById("expense-totals-end").addEventListener("change", function(ev){
+    state.expenseTotalsAtEnd = ev.target.checked;
+    renderExpensePanel();
+    renderExpenseRSPanel();
+  });
 }
 
 // AV% for a single metric ("r" or "o"), or the p.p. gap between them ("gap").
@@ -1842,29 +1858,32 @@ function renderExpenseReceitaLine(){
   var metric = state.expenseMetric;
   var yearEnds = yearBoundaries(months);
 
+  var monthHeadCells = months.map(function(m){ return el("th", {}, [m.label]); });
+  var yearHeadGroups = yearEnds.map(function(idx){
+    return [ el("th", { class:"total-col" }, ["Total " + months[idx].ano]) ];
+  });
+
   var thead = document.getElementById("expense-receita-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Receita Líquida"]));
-  months.forEach(function(m, mi){
-    thead.appendChild(el("th", {}, [m.label]));
-    if (yearEnds.indexOf(mi) !== -1) thead.appendChild(el("th", { class:"total-col" }, ["Total " + m.ano]));
-  });
+  assembleExpenseRowCells(monthHeadCells, yearEnds, yearHeadGroups).forEach(function(c){ thead.appendChild(c); });
 
   var tbody = document.getElementById("expense-receita-table-body");
   tbody.innerHTML = "";
   if (!months.length) return;
 
-  var cells = [ el("td", {}, []) ];
+  var monthCells = [], yearGroups = [];
   var yearSum = 0;
   months.forEach(function(m, mi){
     var v = metric === "gap" ? (m.recR - m.recO) : (metric === "o" ? m.recO : m.recR);
-    cells.push(el("td", {}, [ el("strong", {}, [fmtBRL(v)]) ]));
+    monthCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(v)]) ]));
     yearSum += v;
     if (yearEnds.indexOf(mi) !== -1){
-      cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(yearSum)]) ]));
+      yearGroups.push([ el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(yearSum)]) ]) ]);
       yearSum = 0;
     }
   });
+  var cells = [ el("td", {}, []) ].concat(assembleExpenseRowCells(monthCells, yearEnds, yearGroups));
   tbody.appendChild(el("tr", { class:"receita-row" }, cells));
 }
 
@@ -1877,6 +1896,27 @@ function yearBoundaries(months){
     if (i === months.length - 1 || months[i+1].ano !== m.ano) idxs.push(i);
   });
   return idxs;
+}
+
+// Lays out a row's per-month cells plus its per-year total-column group(s) — either
+// interleaved right after each year's last month (default), or all moved to the end
+// of the row, per the "Mover totais para o final" toggle. `yearGroups` has one entry
+// per index in `yearEnds`, each entry itself an array of 1+ <td>/<th> for that year.
+function assembleExpenseRowCells(monthCells, yearEnds, yearGroups){
+  if (state.expenseTotalsAtEnd){
+    var tail = [];
+    yearGroups.forEach(function(g){ tail = tail.concat(g); });
+    return monthCells.concat(tail);
+  }
+  var out = [], gi = 0;
+  monthCells.forEach(function(cell, mi){
+    out.push(cell);
+    if (yearEnds.indexOf(mi) !== -1){
+      out = out.concat(yearGroups[gi]);
+      gi++;
+    }
+  });
+  return out;
 }
 
 function renderExpensePanel(){
@@ -1938,13 +1978,15 @@ function renderExpensePanel(){
 
   var yearEnds = yearBoundaries(months);
 
+  var monthHeadCells = months.map(function(m){ return el("th", {}, [m.label]); });
+  var yearHeadGroups = yearEnds.map(function(idx){
+    return [ el("th", { class:"total-col" }, ["Total " + months[idx].ano]) ];
+  });
+
   var thead = document.getElementById("expense-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
-  months.forEach(function(m, mi){
-    thead.appendChild(el("th", {}, [m.label]));
-    if (yearEnds.indexOf(mi) !== -1) thead.appendChild(el("th", { class:"total-col" }, ["Total " + m.ano]));
-  });
+  assembleExpenseRowCells(monthHeadCells, yearEnds, yearHeadGroups).forEach(function(c){ thead.appendChild(c); });
 
   var tbody = document.getElementById("expense-table-body");
   tbody.innerHTML = "";
@@ -1965,12 +2007,12 @@ function renderExpensePanel(){
 
   var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
-    var cells = [ el("td", {}, [l.name]) ];
     // Per-year Total column: AV% recomputed from that year's summed despesa/receita
     // (sum/sum, not an average of the monthly AV% values), reset after each year break.
+    var monthCells = [], yearGroups = [];
     var yearDSum = { r:0, o:0 }, yearRecSum = { r:0, o:0 }, yearFound = false;
     months.forEach(function(m, mi){
-      cells.push(el("td", {}, [fmt(grid[li][mi])]));
+      monthCells.push(el("td", {}, [fmt(grid[li][mi])]));
       var key = m.ano + "|" + m.mes + "|" + l.idx;
       var recKey = m.ano + "|" + m.mes + "|" + l.name;
       var d = despesaByKey[key], rec = receitaByKey[recKey];
@@ -1978,10 +2020,11 @@ function renderExpensePanel(){
       if (rec){ yearRecSum.r += rec.r; yearRecSum.o += rec.o; }
       if (yearEnds.indexOf(mi) !== -1){
         var yearAv = yearFound ? avForMetric(metric, yearDSum, yearRecSum) : null;
-        cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(yearAv)]) ]));
+        yearGroups.push([ el("td", { class:"total-col" }, [ el("strong", {}, [fmt(yearAv)]) ]) ]);
         yearDSum = { r:0, o:0 }; yearRecSum = { r:0, o:0 }; yearFound = false;
       }
     });
+    var cells = [ el("td", {}, [l.name]) ].concat(assembleExpenseRowCells(monthCells, yearEnds, yearGroups));
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
       var raw = months.map(function(m){
@@ -1994,7 +2037,7 @@ function renderExpensePanel(){
     tbody.appendChild(tr);
   });
 
-  var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
+  var totalMonthCells = [], totalYearGroups = [];
   var yearDSum2 = { r:0, o:0 }, yearRecSum2 = { r:0, o:0 }, yearFound2 = false;
   months.forEach(function(m, mi){
     var dSum = { r:0, o:0 }, dFound = false;
@@ -2004,15 +2047,16 @@ function renderExpensePanel(){
       if (d){ dSum.r += d.r; dSum.o += d.o; dFound = true; }
     });
     var av = dFound ? avForMetric(metric, dSum, receitaMonthly[mi]) : null;
-    totalCells.push(el("td", {}, [ el("strong", {}, [fmt(av)]) ]));
+    totalMonthCells.push(el("td", {}, [ el("strong", {}, [fmt(av)]) ]));
     if (dFound){ yearDSum2.r += dSum.r; yearDSum2.o += dSum.o; yearFound2 = true; }
     yearRecSum2.r += receitaMonthly[mi].r; yearRecSum2.o += receitaMonthly[mi].o;
     if (yearEnds.indexOf(mi) !== -1){
       var yearAv2 = yearFound2 ? avForMetric(metric, yearDSum2, yearRecSum2) : null;
-      totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmt(yearAv2)]) ]));
+      totalYearGroups.push([ el("td", { class:"total-col" }, [ el("strong", {}, [fmt(yearAv2)]) ]) ]);
       yearDSum2 = { r:0, o:0 }; yearRecSum2 = { r:0, o:0 }; yearFound2 = false;
     }
   });
+  var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ].concat(assembleExpenseRowCells(totalMonthCells, yearEnds, totalYearGroups));
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
 }
 
@@ -2064,16 +2108,16 @@ function renderExpenseRSPanel(){
 
   var yearEnds = yearBoundaries(months);
 
+  var monthHeadCells = months.map(function(m){ return el("th", {}, [m.label]); });
+  var yearHeadGroups = yearEnds.map(function(idx){
+    var ano = months[idx].ano;
+    return [ el("th", { class:"total-col" }, ["Total " + ano]), el("th", { class:"total-col" }, ["Média " + ano]) ];
+  });
+
   var thead = document.getElementById("expense-rs-table-head");
   thead.innerHTML = "";
   thead.appendChild(el("th", {}, ["Loja"]));
-  months.forEach(function(m, mi){
-    thead.appendChild(el("th", {}, [m.label]));
-    if (yearEnds.indexOf(mi) !== -1){
-      thead.appendChild(el("th", { class:"total-col" }, ["Total " + m.ano]));
-      thead.appendChild(el("th", { class:"total-col" }, ["Média " + m.ano]));
-    }
-  });
+  assembleExpenseRowCells(monthHeadCells, yearEnds, yearHeadGroups).forEach(function(c){ thead.appendChild(c); });
 
   var tbody = document.getElementById("expense-rs-table-body");
   tbody.innerHTML = "";
@@ -2096,19 +2140,22 @@ function renderExpenseRSPanel(){
 
   var despesaName = g.despesas[despesaIdx];
   lojaRows.forEach(function(l, li){
-    var cells = [ el("td", {}, [l.name]) ];
     // Total <ano>: sum of that year's monthly R$ values. Média <ano>: plain average
     // of the same values, skipping months with no record.
+    var monthCells = [], yearGroups = [];
     var yearValues = [];
     months.forEach(function(m, mi){
-      cells.push(el("td", {}, [fmtBRL(grid[li][mi])]));
+      monthCells.push(el("td", {}, [fmtBRL(grid[li][mi])]));
       yearValues.push(grid[li][mi]);
       if (yearEnds.indexOf(mi) !== -1){
-        cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(sumOf(yearValues))]) ]));
-        cells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearValues))]) ]));
+        yearGroups.push([
+          el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(sumOf(yearValues))]) ]),
+          el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearValues))]) ])
+        ]);
         yearValues = [];
       }
     });
+    var cells = [ el("td", {}, [l.name]) ].concat(assembleExpenseRowCells(monthCells, yearEnds, yearGroups));
     var tr = el("tr", { class:"loja-row", title:"Ver evolução mensal" }, cells);
     tr.addEventListener("click", function(){
       var raw = months.map(function(m){
@@ -2120,7 +2167,7 @@ function renderExpenseRSPanel(){
     tbody.appendChild(tr);
   });
 
-  var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ];
+  var totalMonthCells = [], totalYearGroups = [];
   var yearMonthlyTotals = [];
   months.forEach(function(m, mi){
     var dSum = { r:0, o:0 }, dFound = false;
@@ -2131,13 +2178,16 @@ function renderExpenseRSPanel(){
     });
     var av = dFound ? rsForMetric(metric, dSum) : null;
     yearMonthlyTotals.push(av);
-    totalCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(av)]) ]));
+    totalMonthCells.push(el("td", {}, [ el("strong", {}, [fmtBRL(av)]) ]));
     if (yearEnds.indexOf(mi) !== -1){
-      totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(sumOf(yearMonthlyTotals))]) ]));
-      totalCells.push(el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearMonthlyTotals))]) ]));
+      totalYearGroups.push([
+        el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(sumOf(yearMonthlyTotals))]) ]),
+        el("td", { class:"total-col" }, [ el("strong", {}, [fmtBRL(averageOf(yearMonthlyTotals))]) ])
+      ]);
       yearMonthlyTotals = [];
     }
   });
+  var totalCells = [ el("td", {}, [el("strong", {}, ["Total"])]) ].concat(assembleExpenseRowCells(totalMonthCells, yearEnds, totalYearGroups));
   tbody.appendChild(el("tr", { class:"total-row" }, totalCells));
 }
 
